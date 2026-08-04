@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply font-heading;
+  }
+  /* Keep focus rings visible for keyboard users — required by the design
+     system's accessibility notes. */
+  :focus-visible {
+    outline: 2px solid theme("colors.espresso");
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* A soft dotted rule reminiscent of a passport page divider —
+     used sparingly, never a literal passport graphic. */
+  .divider-dotted {
+    background-image: radial-gradient(circle, theme("colors.latte") 1px, transparent 1.5px);
+    background-size: 8px 1px;
+    background-repeat: repeat-x;
+    background-position: bottom;
+  }
+}
