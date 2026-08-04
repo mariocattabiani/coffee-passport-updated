@@ -23,6 +23,21 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-stamp-in,
+  .animate-float,
+  .animate-float-slow,
+  .animate-marquee,
+  .animate-glow-pulse,
+  [data-reveal] {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 @layer utilities {
   /* A soft dotted rule reminiscent of a passport page divider —
      used sparingly, never a literal passport graphic. */

@@ -55,6 +55,12 @@ Then open **http://localhost:3000** in your browser. Changes you make to the cod
 3. Netlify will read `netlify.toml` automatically and know how to build the site — you shouldn't need to configure anything by hand.
 4. Every time you push new code to GitHub, Netlify will automatically rebuild and redeploy the live site.
 
+## Photography
+
+Real photos now live in `public/images/`. They're your own images (the ones you sent over), resized to a sensible max dimension and compressed so the site stays fast — full-resolution phone photos can be 3-5MB each, which is too heavy for a webpage. Next.js's `<Image>` component (used throughout `app/page.tsx`) also lazy-loads and further optimizes them automatically at request time.
+
+If you want to swap a photo later, just drop a new file into `public/images/` with the same filename, or update the `src` path in `app/page.tsx`.
+
 ## A note on colors and fonts
 
 Every color and font in this project comes directly from the Coffee Passport Design System document, and is defined in exactly one place: `tailwind.config.ts`. If the brand palette ever changes, that's the only file that needs to be updated — every button, card, and page will update automatically.

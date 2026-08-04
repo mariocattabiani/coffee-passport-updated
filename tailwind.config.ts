@@ -82,10 +82,26 @@ const config: Config = {
           "60%": { opacity: "1", transform: "scale(0.96) rotate(-8deg)" },
           "100%": { opacity: "1", transform: "scale(1) rotate(-8deg)" },
         },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        marquee: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
+        "glow-pulse": {
+          "0%, 100%": { opacity: "0.5", transform: "scale(1)" },
+          "50%": { opacity: "0.8", transform: "scale(1.08)" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.6s ease-out both",
         "stamp-in": "stamp-in 0.5s ease-out both",
+        float: "float 5s ease-in-out infinite",
+        "float-slow": "float 7s ease-in-out infinite",
+        marquee: "marquee 32s linear infinite",
+        "glow-pulse": "glow-pulse 6s ease-in-out infinite",
       },
     },
   },
