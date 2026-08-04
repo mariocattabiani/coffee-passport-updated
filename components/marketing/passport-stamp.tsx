@@ -4,6 +4,13 @@ interface PassportStampProps {
   label?: string;
   sublabel?: string;
   className?: string;
+  /**
+   * When true, renders a solid backing plate behind the stamp so it stays
+   * readable no matter what's behind it (a busy photo, in particular).
+   * Off by default so existing usages on flat backgrounds are unaffected.
+   */
+  backing?: boolean;
+  backingColor?: string;
 }
 
 /**
@@ -16,6 +23,8 @@ export function PassportStamp({
   label = "COFFEE PASSPORT",
   sublabel = "EST. 2026",
   className,
+  backing = false,
+  backingColor = "#FAF8F4",
 }: PassportStampProps) {
   return (
     <div
@@ -26,6 +35,9 @@ export function PassportStamp({
       aria-hidden="true"
     >
       <svg viewBox="0 0 200 200" className="h-full w-full">
+        {backing && (
+          <circle cx="100" cy="100" r="96" fill={backingColor} className="drop-shadow-[0_4px_14px_rgba(43,20,10,0.18)]" />
+        )}
         <defs>
           <path
             id="stampCircleTop"

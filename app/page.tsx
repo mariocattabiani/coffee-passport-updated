@@ -12,6 +12,9 @@ import { FloatingCard } from "@/components/marketing/floating-card";
 import { ActivityMarquee } from "@/components/marketing/activity-marquee";
 import { PhoneMockup } from "@/components/marketing/phone-mockup";
 import { LogScreen } from "@/components/marketing/mockup-screens";
+import { FeatureBento } from "@/components/marketing/feature-bento";
+import { QuoteBlock } from "@/components/marketing/quote-block";
+import { FeaturedDrinks } from "@/components/marketing/featured-drinks";
 
 export default function LandingPage() {
   return (
@@ -61,6 +64,7 @@ export default function LandingPage() {
               className="absolute -right-6 -top-6 h-24 w-24 sm:h-28 sm:w-28"
               label="COFFEE PASSPORT"
               sublabel="EST. 2026"
+              backing
             />
 
             <FloatingCard className="-bottom-6 -left-4 w-52 sm:-left-8">
@@ -86,6 +90,22 @@ export default function LandingPage() {
             <ActivityMarquee />
           </section>
         </Reveal>
+
+        {/* ---------------- HOW IT WORKS ---------------- */}
+        <section className="container py-24">
+          <Reveal className="mx-auto max-w-lg text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sage">
+              How it works
+            </p>
+            <h2 className="mt-3 font-heading text-3xl font-semibold text-espresso sm:text-4xl">
+              Everything you need, before and after you order.
+            </h2>
+          </Reveal>
+
+          <Reveal delayMs={100} className="mt-12">
+            <FeatureBento />
+          </Reveal>
+        </section>
 
         {/* ---------------- STORY 1 — DISCOVER ---------------- */}
         <section className="container py-24">
@@ -129,8 +149,26 @@ export default function LandingPage() {
                   Surface the standout drink at every shop, not just the shop
                 </li>
               </ul>
+              <div className="mt-6 flex flex-wrap gap-2">
+                <span className="rounded-full bg-espresso/5 px-3 py-1.5 text-xs font-medium text-espresso">
+                  Friends' picks
+                </span>
+                <span className="rounded-full bg-espresso/5 px-3 py-1.5 text-xs font-medium text-espresso">
+                  Trending this week
+                </span>
+                <span className="rounded-full bg-espresso/5 px-3 py-1.5 text-xs font-medium text-espresso">
+                  Near you
+                </span>
+              </div>
             </Reveal>
           </div>
+        </section>
+
+        {/* ---------------- QUOTE ---------------- */}
+        <section className="container pb-24">
+          <Reveal>
+            <QuoteBlock />
+          </Reveal>
         </section>
 
         {/* ---------------- STORY 2 — LOG ---------------- */}
@@ -170,6 +208,26 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ---------------- FEATURED DRINKS ---------------- */}
+        <section className="border-t border-border/60 bg-white/50 py-24">
+          <div className="container">
+            <Reveal className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sage">
+                  A taste of Discover
+                </p>
+                <h2 className="mt-2 font-heading text-3xl font-semibold text-espresso sm:text-4xl">
+                  The kind of thing people are logging.
+                </h2>
+              </div>
+            </Reveal>
+
+            <Reveal delayMs={100} className="mt-10">
+              <FeaturedDrinks />
+            </Reveal>
+          </div>
+        </section>
+
         {/* ---------------- STORY 3 — PASSPORT / COMMUNITY ---------------- */}
         <section className="relative overflow-hidden py-28">
           <Image
@@ -179,14 +237,15 @@ export default function LandingPage() {
             sizes="100vw"
             className="object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-espresso via-espresso/70 to-espresso/30" />
+          <div className="absolute inset-0 bg-espresso/75" />
+          <div className="absolute inset-0 bg-gradient-to-t from-espresso via-espresso/60 to-espresso/60" />
 
           <div className="container relative">
             <Reveal className="mx-auto max-w-xl text-center">
               <h2 className="font-heading text-3xl font-semibold text-crema sm:text-4xl">
                 Every stop becomes a stamp.
               </h2>
-              <p className="mx-auto mt-4 max-w-sm text-crema/70">
+              <p className="mx-auto mt-4 max-w-sm text-crema/80">
                 Your passport fills in quietly, one café at a time — a
                 record of where you've been and what you'd order again.
               </p>
@@ -198,6 +257,22 @@ export default function LandingPage() {
               <StampBadge label="COLD BREW" rotate={-4} color="#FAF8F4" className="animate-float" />
               <StampBadge label="POUR-OVER" rotate={7} color="#FAF8F4" className="animate-float-slow h-20 w-20" />
             </Reveal>
+
+            <Reveal delayMs={200} className="mx-auto mt-14 flex max-w-xs justify-center">
+              <div className="flex items-center gap-6 rounded-xl bg-white/95 px-6 py-4 shadow-card backdrop-blur-sm">
+                {[
+                  ["142", "Coffees"],
+                  ["37", "Cafés"],
+                  ["19", "Drinks"],
+                ].map(([n, l]) => (
+                  <div key={l} className="text-center">
+                    <p className="font-heading text-xl font-semibold text-espresso">{n}</p>
+                    <p className="text-[10px] uppercase tracking-wide text-charcoal/40">{l}</p>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
+            <p className="mt-3 text-center text-xs text-crema/50">One passport, six months in — yours will look different.</p>
           </div>
         </section>
 
@@ -246,7 +321,7 @@ export default function LandingPage() {
             <Reveal className="flex flex-col items-center gap-6">
               <div className="relative">
                 <div className="absolute inset-0 animate-glow-pulse rounded-full bg-latte/30 blur-2xl" />
-                <PassportStamp className="relative" />
+                <PassportStamp className="relative" backing />
               </div>
               <h2 className="font-heading text-3xl font-semibold text-crema sm:text-4xl">
                 Build the world's largest community of coffee lovers.
