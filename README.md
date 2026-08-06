@@ -78,3 +78,31 @@ Every color and font in this project comes directly from the Coffee Passport Des
 ## Next sprint
 
 Once you approve this sprint, the next step (per our plan) is wiring up real authentication and the database with Supabase.
+
+## Sprint 2 — Authentication & Onboarding
+
+This sprint adds real accounts. Here's what you need to do once, then how it all fits together.
+
+### 1. Set up Supabase
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. Go to **Project Settings → API** and copy the **Project URL** and **anon public key**.
+3. In this project's root folder, copy `.env.local.example` to a new file named `.env.local`, and paste those two values in.
+4. Go to **SQL Editor** in the Supabase dashboard, paste in the contents of `supabase/schema.sql`, and run it. This creates the `profiles` and `user_shop_preferences` tables, locks them down with row-level security (so people can only ever see and edit their own data), and sets up a trigger that automatically creates a profile the moment someone signs up.
+5. Go to **Authentication → Settings** and turn **off** "Confirm email" for now, so new accounts can move straight into onboarding without needing to click a confirmation link. (You can turn this back on before a real launch — the app already handles both cases.)
+6. *(Optional, for profile photos)* In **Storage**, create a new bucket named `avatars` and toggle it public. Then run `supabase/storage.sql` in the SQL Editor. If you skip this step, onboarding still works fine — it just won't save a photo.
+
+### 2. Add the same environment variables to Netlify
+
+In **Netlify → Site settings → Environment variables**, add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` with the same values, then trigger a new deploy.
+
+### 3. How the pieces fit together
+
+- `middleware.ts` runs on every request to `/login`, `/signup`, `/dashboard`, and `/onboarding`. It checks whether you're signed in and whether you've finished onboarding, and redirects you to the right place automatically.
+- `lib/auth/actions.ts` has the three server-side functions that actually talk to Supabase: `signUp`, `signIn`, `signOut`.
+- `app/onboarding/` is a 5-step wizard (`components/onboarding/`) that collects profile info, favorite drinks, and favorite shops, then saves everything at once via `app/onboarding/actions.ts`.
+- `app/dashboard/page.tsx` is the simple landing spot after onboarding — greeting, a disabled "Log Coffee" button (that becomes real in a future sprint), and empty states for the sections that aren't built yet.
+
+### 4. Try it
+
+Run `npm install` (to pick up the two new Supabase packages) and `npm run dev`, then visit `/signup`, create an account, and walk through onboarding. Visiting `/dashboard` directly while signed out should bounce you to `/login`.

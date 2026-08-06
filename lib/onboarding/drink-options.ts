@@ -1,0 +1,15 @@
+export const DRINK_OPTIONS = [
+  "Latte",
+  "Cappuccino",
+  "Flat White",
+  "Cortado",
+  "Espresso",
+  "Americano",
+  "Drip Coffee",
+  "Cold Brew",
+  "Nitro Cold Brew",
+  "Mocha",
+  "Macchiato",
+  "Chai Latte",
+  "Matcha",
+] as const;
