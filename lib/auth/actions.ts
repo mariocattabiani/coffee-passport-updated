@@ -23,7 +23,7 @@ export async function signUp(
     return { error: "Password must be at least 6 characters." };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -59,7 +59,7 @@ export async function signIn(
     return { error: "Please enter your email and password." };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
@@ -70,7 +70,7 @@ export async function signIn(
 }
 
 export async function signOut() {
-  const supabase = createClient();
+  const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");
 }

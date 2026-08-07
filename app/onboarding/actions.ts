@@ -25,7 +25,7 @@ export interface CompleteOnboardingInput {
 const UNIQUE_VIOLATION = "23505";
 
 export async function completeOnboarding(input: CompleteOnboardingInput) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },
