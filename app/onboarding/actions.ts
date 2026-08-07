@@ -17,6 +17,13 @@ export interface CompleteOnboardingInput {
   shopPreferences: { shopId: string; shopName: string; status: ShopPreferenceStatus }[];
 }
 
+// Postgres's code for "unique constraint violation." We check for this
+// specifically so a username collision (for example, two people submitting
+// the same username within moments of each other, after the availability
+// check already said it was free) gets a friendly message instead of a
+// raw database error.
+const UNIQUE_VIOLATION = "23505";
+
 export async function completeOnboarding(input: CompleteOnboardingInput) {
   const supabase = createClient();
 
@@ -45,7 +52,11 @@ export async function completeOnboarding(input: CompleteOnboardingInput) {
     .eq("id", user.id);
 
   if (profileError) {
-    return { error: profileError.message };
+    if (profileError.code === UNIQUE_VIOLATION) {
+      return { error: "That username was just taken. Please choose another." };
+    }
+    // Never surface raw Supabase/Postgres error text to the person.
+    return { error: "Something went wrong saving your profile. Please try again." };
   }
 
   // Replace any existing shop preferences with the ones just selected.
@@ -62,7 +73,7 @@ export async function completeOnboarding(input: CompleteOnboardingInput) {
     );
 
     if (shopsError) {
-      return { error: shopsError.message };
+      return { error: "Something went wrong saving your favorite shops. Please try again." };
     }
   }
 

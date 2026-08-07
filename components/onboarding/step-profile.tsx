@@ -1,43 +1,89 @@
 "use client";
 
-import { useRef } from "react";
-import { Camera, User } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Camera, User, Check, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { AvatarCropper } from "@/components/onboarding/avatar-cropper";
+import { createClient } from "@/lib/supabase/client";
 import type { WizardData } from "@/lib/onboarding/types";
 
 interface StepProfileProps {
+  userId: string;
   data: WizardData;
   update: (patch: Partial<WizardData>) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-// Mock validation only — checks against a small blocklist rather than a
-// real database lookup. Real-time username availability is a later sprint.
-const TAKEN_USERNAMES = ["admin", "coffee", "test", "mario"];
+type UsernameStatus = "idle" | "checking" | "available" | "taken" | "error";
 
-export function StepProfile({ data, update, onNext, onBack }: StepProfileProps) {
+const DEBOUNCE_MS = 450;
+const MIN_USERNAME_LENGTH = 3;
+
+export function StepProfile({ userId, data, update, onNext, onBack }: StepProfileProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
 
-  const usernameTaken =
-    data.username.length > 0 &&
-    TAKEN_USERNAMES.includes(data.username.trim().toLowerCase());
+  // Checks the username against the database, but only after the person
+  // has paused typing for a moment and typed at least a few characters,
+  // so we're not sending a request on every keystroke.
+  useEffect(() => {
+    const trimmed = data.username.trim();
+
+    if (trimmed.length < MIN_USERNAME_LENGTH) {
+      setUsernameStatus("idle");
+      return;
+    }
+
+    setUsernameStatus("checking");
+
+    const timeout = setTimeout(async () => {
+      const supabase = createClient();
+      const { data: taken, error } = await supabase.rpc("is_username_taken", {
+        check_username: trimmed,
+        exclude_id: userId,
+      });
+
+      if (error) {
+        setUsernameStatus("error");
+        return;
+      }
+      setUsernameStatus(taken ? "taken" : "available");
+    }, DEBOUNCE_MS);
+
+    return () => clearTimeout(timeout);
+  }, [data.username, userId]);
 
   const canContinue =
     data.firstName.trim().length > 0 &&
-    data.username.trim().length >= 3 &&
-    !usernameTaken &&
+    usernameStatus === "available" &&
     data.city.trim().length > 0 &&
     data.state.trim().length > 0;
 
   function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    update({ avatarFile: file, avatarPreview: URL.createObjectURL(file) });
+    // Open the crop dialog with the raw photo. Nothing is saved to the
+    // wizard's state until the user applies a crop, so onboarding is
+    // unaffected if they back out here.
+    setCropSrc(URL.createObjectURL(file));
+    e.target.value = "";
+  }
+
+  function handleCropCancel() {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  }
+
+  function handleCropSave(file: File, previewUrl: string) {
+    update({ avatarFile: file, avatarPreview: previewUrl });
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
   }
 
   return (
@@ -82,8 +128,29 @@ export function StepProfile({ data, update, onNext, onBack }: StepProfileProps) 
 
       <div className="mt-4 space-y-1.5">
         <Label htmlFor="username">Username</Label>
-        <Input id="username" value={data.username} onChange={(e) => update({ username: e.target.value })} placeholder="jamierivera" required />
-        {usernameTaken && <p className="text-xs text-error">That username is taken — try another.</p>}
+        <div className="relative">
+          <Input
+            id="username"
+            value={data.username}
+            onChange={(e) => update({ username: e.target.value })}
+            placeholder="jamierivera"
+            required
+            className="pr-10"
+          />
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+            {usernameStatus === "checking" && <Loader2 className="h-4 w-4 animate-spin text-charcoal/30" />}
+            {usernameStatus === "available" && <Check className="h-4 w-4 text-sage" />}
+          </div>
+        </div>
+        {usernameStatus === "taken" && (
+          <p className="text-xs text-error">Username already taken.</p>
+        )}
+        {usernameStatus === "error" && (
+          <p className="text-xs text-error">Couldn't check that username, try again.</p>
+        )}
+        {data.username.trim().length > 0 && data.username.trim().length < MIN_USERNAME_LENGTH && (
+          <p className="text-xs text-charcoal/40">Username must be at least {MIN_USERNAME_LENGTH} characters.</p>
+        )}
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -110,6 +177,10 @@ export function StepProfile({ data, update, onNext, onBack }: StepProfileProps) 
           Continue
         </Button>
       </div>
+
+      {cropSrc && (
+        <AvatarCropper imageSrc={cropSrc} onCancel={handleCropCancel} onSave={handleCropSave} />
+      )}
     </div>
   );
 }

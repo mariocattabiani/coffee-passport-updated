@@ -5,6 +5,7 @@ import { AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { GoogleIcon } from "@/components/marketing/google-icon";
 import { signUp, type AuthFormState } from "@/lib/auth/actions";
@@ -45,7 +46,7 @@ export function SignupForm() {
 
         <div className="space-y-1.5">
           <Label htmlFor="password">Password</Label>
-          <Input id="password" name="password" type="password" placeholder="At least 6 characters" autoComplete="new-password" required minLength={6} />
+          <PasswordInput id="password" name="password" placeholder="At least 6 characters" autoComplete="new-password" required minLength={6} />
         </div>
 
         <SubmitButton />

@@ -98,7 +98,7 @@ export function OnboardingWizard({ userId }: { userId: string }) {
 
         <div key={step} className="animate-fade-up rounded-2xl border border-border/60 bg-white p-6 shadow-card sm:p-8">
           {step === 0 && <StepWelcome onNext={next} />}
-          {step === 1 && <StepProfile data={data} update={update} onNext={next} onBack={back} />}
+          {step === 1 && <StepProfile userId={userId} data={data} update={update} onNext={next} onBack={back} />}
           {step === 2 && <StepDrinks data={data} update={update} onNext={next} onBack={back} />}
           {step === 3 && <StepShops data={data} update={update} onNext={next} onBack={back} />}
           {step === 4 && (
