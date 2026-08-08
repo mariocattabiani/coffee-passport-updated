@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PROTECTED_PATHS = ["/dashboard", "/onboarding", "/log"];
@@ -23,7 +23,13 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(
+  cookiesToSet: {
+    name: string;
+    value: string;
+    options?: CookieOptions;
+  }[]
+) {
           // Applied as one batch, on one response, rather than the old
           // pattern of rebuilding the response object on every single
           // cookie. That mattered: Supabase's session is often more
