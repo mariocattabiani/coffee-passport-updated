@@ -1,8 +1,8 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 /**
- * Creates a Supabase client for use on the server — in Server Components,
+ * Creates a Supabase client for use on the server: Server Components,
  * Server Actions, and Route Handlers. It reads the user's session from
  * cookies, so `supabase.auth.getUser()` returns the signed-in user.
  *
@@ -18,23 +18,23 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+        getAll() {
+          return cookieStore.getAll();
         },
-        set(name: string, value: string, options: CookieOptions) {
+        setAll(cookiesToSet) {
           try {
-            cookieStore.set({ name, value, ...options });
+            // All cookies in the batch are written together. This
+            // matters for something like signOut(), which needs to
+            // clear every piece of a (possibly chunked) session cookie
+            // in one pass, not one at a time.
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
           } catch {
-            // Setting cookies from a Server Component (not a Server Action
-            // or Route Handler) throws — safe to ignore because the
-            // middleware refreshes the session on every request anyway.
-          }
-        },
-        remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value: "", ...options });
-          } catch {
-            // See note above.
+            // Setting cookies from a Server Component (not a Server
+            // Action or Route Handler) throws, safe to ignore because
+            // the middleware refreshes the session on every request
+            // anyway.
           }
         },
       },
