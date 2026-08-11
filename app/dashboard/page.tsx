@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { Coffee, MapPin, Sparkles } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import type { Profile, BeverageCategory, Temperature } from "@/lib/supabase/types";
+import { AuthenticatedHeader } from "@/components/dashboard/authenticated-header";
 import { DashboardHero } from "@/components/dashboard/dashboard-hero";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { ComingSoonStrip } from "@/components/dashboard/coming-soon-strip";
-import { LogoutButton } from "@/components/dashboard/logout-button";
 import { RecentActivity } from "@/components/logs/recent-activity";
 import type { LogCardData } from "@/components/logs/log-card";
 
@@ -17,6 +18,7 @@ export const metadata: Metadata = {
 
 interface RecentLogRow {
   id: string;
+  beverage_category: BeverageCategory;
   drink_rating: number;
   shop_rating: number;
   caption: string | null;
@@ -64,7 +66,7 @@ export default async function DashboardPage() {
   const { data: recentRows } = await supabase
     .from("drink_logs")
     .select(
-      "id, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, shop:shops(name), drink:drinks(name)"
+      "id, beverage_category, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, shop:shops(name), drink:drinks(name)"
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
@@ -90,6 +92,7 @@ export default async function DashboardPage() {
     id: r.id,
     shopName: r.shop?.name ?? "Unknown shop",
     drinkName: r.drink?.name ?? "Unknown drink",
+    beverageCategory: r.beverage_category,
     drinkRating: r.drink_rating,
     shopRating: r.shop_rating,
     caption: r.caption,
@@ -104,16 +107,8 @@ export default async function DashboardPage() {
   const firstName = profile?.first_name || "there";
 
   return (
-    <div className="min-h-screen bg-crema">
-      <header className="border-b border-border/40">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Coffee className="h-5 w-5 text-espresso" />
-            <span className="font-heading text-lg font-semibold text-espresso">Coffee Passport</span>
-          </div>
-          <LogoutButton />
-        </div>
-      </header>
+    <div className="min-h-screen bg-crema pb-24 sm:pb-10">
+      <AuthenticatedHeader active="dashboard" />
 
       <main className="container max-w-5xl space-y-8 py-6 sm:space-y-10 sm:py-10">
         <DashboardHero firstName={firstName} />
@@ -133,9 +128,17 @@ export default async function DashboardPage() {
 
         {/* RECENT ACTIVITY */}
         <section>
-          <div className="mb-4">
-            <h2 className="font-heading text-xl font-semibold text-espresso">Recent coffees</h2>
-            <p className="text-sm text-charcoal/50">Your latest cups and café visits</p>
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <h2 className="font-heading text-xl font-semibold text-espresso">Recent coffees</h2>
+              <p className="text-sm text-charcoal/50">Your latest cups and café visits</p>
+            </div>
+            <Link
+              href="/passport"
+              className="shrink-0 text-sm font-medium text-sage hover:text-espresso"
+            >
+              View your Passport
+            </Link>
           </div>
           <RecentActivity initialLogs={recentLogs} />
         </section>

@@ -7,11 +7,13 @@ import { MapPin, Pencil, Trash2, Thermometer } from "lucide-react";
 import { DeleteLogDialog } from "@/components/logs/delete-log-dialog";
 import { StarDisplay } from "@/components/logs/star-display";
 import { formatPrice, formatRelativeDate } from "@/lib/drink-logs/format";
+import type { BeverageCategory } from "@/lib/supabase/types";
 
 export interface LogCardData {
   id: string;
   shopName: string;
   drinkName: string;
+  beverageCategory: BeverageCategory;
   drinkRating: number;
   shopRating: number;
   caption: string | null;

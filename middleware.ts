@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PATHS = ["/dashboard", "/onboarding", "/log"];
+const PROTECTED_PATHS = ["/dashboard", "/onboarding", "/log", "/passport"];
 const AUTH_PATHS = ["/login", "/signup"];
 
 // A plain pathname.startsWith("/log") also matches "/login", since
@@ -24,12 +24,12 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(
-  cookiesToSet: {
-    name: string;
-    value: string;
-    options?: CookieOptions;
-  }[]
-) {
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options?: CookieOptions;
+          }[]
+        ) {
           // Applied as one batch, on one response, rather than the old
           // pattern of rebuilding the response object on every single
           // cookie. That mattered: Supabase's session is often more
@@ -86,7 +86,12 @@ export async function middleware(request: NextRequest) {
 
     const onboarded = profile?.onboarding_completed ?? false;
 
-    if ((matchesPath(pathname, "/dashboard") || matchesPath(pathname, "/log")) && !onboarded) {
+    if (
+      (matchesPath(pathname, "/dashboard") ||
+        matchesPath(pathname, "/log") ||
+        matchesPath(pathname, "/passport")) &&
+      !onboarded
+    ) {
       const url = request.nextUrl.clone();
       url.pathname = "/onboarding";
       return redirectWithCookies(url);
@@ -109,5 +114,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/log/:path*", "/login", "/signup"],
+  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/log/:path*", "/passport/:path*", "/login", "/signup"],
 };

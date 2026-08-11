@@ -6,7 +6,7 @@ interface StatCardProps {
   icon: LucideIcon;
   value: number;
   label: string;
-  tint: "espresso" | "latte" | "sage";
+  tint: "espresso" | "latte" | "sage" | "gold";
   secondary?: string;
 }
 
@@ -14,6 +14,7 @@ const TINTS: Record<StatCardProps["tint"], { bg: string; badge: string }> = {
   espresso: { bg: "bg-espresso/[0.05]", badge: "bg-espresso text-crema" },
   latte: { bg: "bg-latte/[0.18]", badge: "bg-latte text-espresso" },
   sage: { bg: "bg-sage/[0.10]", badge: "bg-sage text-crema" },
+  gold: { bg: "bg-gold/[0.12]", badge: "bg-gold text-espresso" },
 };
 
 export function StatCard({ icon: Icon, value, label, tint, secondary }: StatCardProps) {

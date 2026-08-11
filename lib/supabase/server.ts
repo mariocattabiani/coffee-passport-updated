@@ -22,12 +22,12 @@ export async function createClient() {
           return cookieStore.getAll();
         },
         setAll(
-  cookiesToSet: {
-    name: string;
-    value: string;
-    options?: CookieOptions;
-  }[]
-) {
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options?: CookieOptions;
+          }[]
+        ) {
           try {
             // All cookies in the batch are written together. This
             // matters for something like signOut(), which needs to
