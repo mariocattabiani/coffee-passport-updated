@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Profile, BeverageCategory, Temperature } from "@/lib/supabase/types";
 import { AuthenticatedHeader } from "@/components/dashboard/authenticated-header";
 import { PassportHeader } from "@/components/passport/passport-header";
+import { CoffeeMap, type MapShop } from "@/components/passport/coffee-map";
 import { FavoritesSection, type FavoriteSummary } from "@/components/passport/favorites-section";
 import { PassportHistory } from "@/components/passport/passport-history";
 import { PassportEmptyState } from "@/components/passport/passport-empty-state";
@@ -27,7 +28,7 @@ interface FullLogRow {
   size: string | null;
   temperature: Temperature | null;
   created_at: string;
-  shop: { name: string; city: string | null; state: string | null } | null;
+  shop: { name: string; city: string | null; state: string | null; latitude: number | null; longitude: number | null } | null;
   drink: { name: string } | null;
 }
 
@@ -62,7 +63,7 @@ export default async function PassportPage() {
   const { data: rows } = await supabase
     .from("drink_logs")
     .select(
-      "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, shop:shops(name,city,state), drink:drinks(name)"
+      "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, shop:shops(name,city,state,latitude,longitude), drink:drinks(name)"
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
@@ -196,6 +197,44 @@ export default async function PassportPage() {
         }
       : null;
 
+  // COFFEE MAP: unique visited shops that have real coordinates. Old
+  // seed shops (no lat/lng) are simply excluded here, no Google call is
+  // ever made to try to "fill in" a location for them.
+  interface ShopMapAgg extends MapShop {
+    ratingSum: number;
+  }
+  const shopMapAggMap = new Map<string, ShopMapAgg>();
+  for (const l of logs) {
+    if (l.shop?.latitude == null || l.shop?.longitude == null) continue;
+    const existing = shopMapAggMap.get(l.shop_id);
+    if (existing) {
+      existing.visitCount += 1;
+      existing.ratingSum += l.shop_rating;
+    } else {
+      shopMapAggMap.set(l.shop_id, {
+        id: l.shop_id,
+        name: l.shop.name,
+        city: l.shop.city,
+        state: l.shop.state,
+        latitude: l.shop.latitude,
+        longitude: l.shop.longitude,
+        visitCount: 1,
+        ratingSum: l.shop_rating,
+        avgShopRating: 0,
+      });
+    }
+  }
+  const mapShops: MapShop[] = [...shopMapAggMap.values()].map((s) => ({
+    id: s.id,
+    name: s.name,
+    city: s.city,
+    state: s.state,
+    latitude: s.latitude,
+    longitude: s.longitude,
+    visitCount: s.visitCount,
+    avgShopRating: Math.round((s.ratingSum / s.visitCount) * 10) / 10,
+  }));
+
   const hasLogs = logs.length > 0;
 
   return (
@@ -214,6 +253,14 @@ export default async function PassportPage() {
 
         {hasLogs ? (
           <>
+            <section>
+              <div className="mb-4">
+                <h2 className="font-heading text-xl font-semibold text-espresso">Your Coffee Map</h2>
+                <p className="text-sm text-charcoal/50">Every café you&apos;ve explored, together in one place</p>
+              </div>
+              <CoffeeMap shops={mapShops} />
+            </section>
+
             <FavoritesSection favoriteDrink={favoriteDrink} favoriteShop={favoriteShop} hotIced={hotIced} />
 
             <PassportHistory initialLogs={historyLogs} />

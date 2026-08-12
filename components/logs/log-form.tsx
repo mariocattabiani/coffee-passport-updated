@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ShopPicker } from "@/components/logs/shop-picker";
+import { GoogleShopPicker } from "@/components/logs/google-shop-picker";
 import { DrinkPicker } from "@/components/logs/drink-picker";
 import { StarRating } from "@/components/logs/star-rating";
 import { PhotoUpload } from "@/components/logs/photo-upload";
@@ -19,10 +19,9 @@ import type { Drink, Shop, Temperature } from "@/lib/supabase/types";
 
 interface LogFormProps {
   userId: string;
-  shops: Shop[];
 }
 
-export function LogForm({ userId, shops }: LogFormProps) {
+export function LogForm({ userId }: LogFormProps) {
   const router = useRouter();
   const [data, setData] = useState<LogFormData>(INITIAL_LOG_FORM_DATA);
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
@@ -114,8 +113,7 @@ export function LogForm({ userId, shops }: LogFormProps) {
       {/* SECTION 1: SHOP */}
       <section className="mt-8">
         <h2 className="mb-3 font-heading text-lg font-semibold text-espresso">Where did you go?</h2>
-        <ShopPicker
-          shops={shops}
+        <GoogleShopPicker
           selectedShop={selectedShop}
           onSelect={handleSelectShop}
           onChange={() => {
