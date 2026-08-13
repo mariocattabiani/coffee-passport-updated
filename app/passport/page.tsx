@@ -28,6 +28,7 @@ interface FullLogRow {
   size: string | null;
   temperature: Temperature | null;
   created_at: string;
+  logged_at: string;
   shop: { name: string; city: string | null; state: string | null; latitude: number | null; longitude: number | null } | null;
   drink: { name: string } | null;
 }
@@ -63,9 +64,10 @@ export default async function PassportPage() {
   const { data: rows } = await supabase
     .from("drink_logs")
     .select(
-      "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, shop:shops(name,city,state,latitude,longitude), drink:drinks(name)"
+      "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, logged_at, shop:shops(name,city,state,latitude,longitude), drink:drinks(name)"
     )
     .eq("user_id", user.id)
+    .order("logged_at", { ascending: false })
     .order("created_at", { ascending: false })
     .returns<FullLogRow[]>();
 
@@ -98,6 +100,7 @@ export default async function PassportPage() {
     size: l.size,
     temperature: l.temperature,
     createdAt: l.created_at,
+    loggedAt: l.logged_at,
   }));
 
   // STATS
@@ -112,8 +115,10 @@ export default async function PassportPage() {
 
   // FAVORITES: most-logged wins, tie-broken by average rating, then
   // alphabetically, so the result is always deterministic. Logs are
-  // already newest-first from the query above, so the first photo found
-  // for a given drink or shop is already its most recent one.
+  // already ordered newest-logged-first (by logged_at) from the query
+  // above, so the first photo found for a given drink or shop is the
+  // one from its most recently *had* occurrence, not merely the most
+  // recently entered row.
   function buildAggregate(
     getKey: (l: FullLogRow) => string,
     getName: (l: FullLogRow) => string,

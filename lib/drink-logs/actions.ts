@@ -39,6 +39,108 @@ function isValidTemperature(t: string | null) {
   return t === null || t === "hot" || t === "iced";
 }
 
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidTimeZone(tz: string): boolean {
+  try {
+    // eslint-disable-next-line no-new
+    new Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Converts a "YYYY-MM-DD" calendar date, as picked in someone's own
+ * local timezone, into the UTC instant for local noon on that date in
+ * that timezone. This is the standard technique for this conversion
+ * using only the native Intl API (no date library needed): make a
+ * first guess treating the numbers as UTC, ask Intl what that instant
+ * actually displays as in the target timezone, then correct the guess
+ * by the difference. One pass is sufficient, IANA zone offsets don't
+ * change within the same instant being evaluated.
+ */
+function zonedDateToUtcNoon(dateOnly: string, timeZone: string): Date {
+  const [year, month, day] = dateOnly.split("-").map(Number);
+  const guess = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  const parts = formatter.formatToParts(guess);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const shownAsUtc = Date.UTC(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour"),
+    get("minute"),
+    get("second")
+  );
+
+  const diff = guess.getTime() - shownAsUtc;
+  return new Date(guess.getTime() + diff);
+}
+
+/**
+ * Turns an optional "YYYY-MM-DD" date (as picked in the user's own
+ * local calendar) plus their browser-reported IANA timezone into a
+ * stored timestamptz value that displays back as that same calendar
+ * date to them. Falls back to UTC if the timezone is missing or
+ * unrecognized, rather than failing the whole request. Returns
+ * { value: null, error: null } when no date was picked at all, meaning
+ * "use now()".
+ */
+function resolveLoggedAt(
+  dateOnly: string | null,
+  timeZone: string | null
+): { loggedAt: string | null; loggedDate: string | null; error: string | null } {
+  if (!dateOnly) {
+    return { loggedAt: null, loggedDate: null, error: null };
+  }
+  if (!DATE_ONLY_PATTERN.test(dateOnly)) {
+    return { loggedAt: null, loggedDate: null, error: "That date doesn't look right. Please try again." };
+  }
+
+  const safeTimeZone = timeZone && isValidTimeZone(timeZone) ? timeZone : "UTC";
+
+  let timestamp: Date;
+  try {
+    timestamp = zonedDateToUtcNoon(dateOnly, safeTimeZone);
+  } catch {
+    return { loggedAt: null, loggedDate: null, error: "That date doesn't look right. Please try again." };
+  }
+  if (Number.isNaN(timestamp.getTime())) {
+    return { loggedAt: null, loggedDate: null, error: "That date doesn't look right. Please try again." };
+  }
+
+  // "Today" is evaluated in the same timezone the date was picked in,
+  // today in Tokyo and today in New York aren't the same UTC instant,
+  // and a date should only be rejected if it's truly in the future from
+  // the person's own point of view. The en-CA locale formats dates as
+  // YYYY-MM-DD, matching dateOnly's shape, so this is a safe string
+  // comparison.
+  const todayInZone = new Intl.DateTimeFormat("en-CA", { timeZone: safeTimeZone }).format(new Date());
+  if (dateOnly > todayInZone) {
+    return { loggedAt: null, loggedDate: null, error: "You can't log a coffee for a future date." };
+  }
+
+  // dateOnly itself, exactly as the person picked it, is what gets
+  // stored as logged_date. logged_at is derived from it for sorting,
+  // but logged_date is the calendar day of record, never reconstructed
+  // later by slicing a UTC timestamp, which can land on the wrong day
+  // for timezones several hours ahead of UTC.
+  return { loggedAt: timestamp.toISOString(), loggedDate: dateOnly, error: null };
+}
+
 interface RatableFields {
   drinkRating: number;
   shopRating: number;
@@ -145,6 +247,10 @@ export interface CreateDrinkLogInput extends RatableFields {
   shopId: string;
   drinkId: string;
   photoPath: string | null;
+  /** "YYYY-MM-DD" if backdated, null to use now(). */
+  loggedAtDate: string | null;
+  /** IANA timezone the date above was picked in, e.g. "America/New_York". */
+  timeZone: string | null;
 }
 
 export async function createDrinkLog(input: CreateDrinkLogInput) {
@@ -177,6 +283,12 @@ export async function createDrinkLog(input: CreateDrinkLogInput) {
   if (validationError) {
     await removePhoto(supabase, photoPath);
     return { error: validationError };
+  }
+
+  const { loggedAt, loggedDate, error: dateError } = resolveLoggedAt(input.loggedAtDate, input.timeZone);
+  if (dateError) {
+    await removePhoto(supabase, photoPath);
+    return { error: dateError };
   }
 
   // The stored drink record is the source of truth, never the client,
@@ -215,6 +327,7 @@ export async function createDrinkLog(input: CreateDrinkLogInput) {
     price: input.price,
     size: input.size,
     temperature: input.temperature,
+    ...(loggedAt ? { logged_at: loggedAt, logged_date: loggedDate } : {}),
   });
 
   if (error) {
@@ -238,6 +351,10 @@ export interface UpdateDrinkLogInput extends RatableFields {
   newPhotoPath: string | null;
   /** True if the user removed the photo without replacing it. */
   removePhoto: boolean;
+  /** "YYYY-MM-DD", always the prefilled existing value unless the user
+   *  changed it, so an unrelated edit never resets logged_at to now. */
+  loggedAtDate: string | null;
+  timeZone: string | null;
 }
 
 export async function updateDrinkLog(logId: string, input: UpdateDrinkLogInput) {
@@ -294,6 +411,12 @@ export async function updateDrinkLog(logId: string, input: UpdateDrinkLogInput) 
     return { error: validationError };
   }
 
+  const { loggedAt, loggedDate, error: dateError } = resolveLoggedAt(input.loggedAtDate, input.timeZone);
+  if (dateError) {
+    await cleanupIfOrphaned();
+    return { error: dateError };
+  }
+
   const updatePayload: Record<string, unknown> = {
     drink_rating: input.drinkRating,
     shop_rating: input.shopRating,
@@ -303,6 +426,15 @@ export async function updateDrinkLog(logId: string, input: UpdateDrinkLogInput) 
     temperature: input.temperature,
     updated_at: new Date().toISOString(),
   };
+
+  // Only ever written when a real date resolved. loggedAtDate is always
+  // prefilled from the log's existing value on the edit form, so this
+  // is a round-trip of the same date and calendar day unless the person
+  // actually changed it, never a silent reset to now().
+  if (loggedAt) {
+    updatePayload.logged_at = loggedAt;
+    updatePayload.logged_date = loggedDate;
+  }
 
   if (newPhotoPath) {
     updatePayload.photo_url = newPhotoPath;

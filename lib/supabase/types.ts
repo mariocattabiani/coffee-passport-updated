@@ -65,5 +65,7 @@ export interface DrinkLog {
   size: string | null;
   temperature: Temperature | null;
   created_at: string;
+  logged_at: string;
+  logged_date: string | null;
   updated_at: string;
 }

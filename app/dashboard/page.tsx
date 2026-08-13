@@ -27,6 +27,7 @@ interface RecentLogRow {
   size: string | null;
   temperature: Temperature | null;
   created_at: string;
+  logged_at: string;
   shop: { name: string } | null;
   drink: { name: string } | null;
 }
@@ -66,9 +67,10 @@ export default async function DashboardPage() {
   const { data: recentRows } = await supabase
     .from("drink_logs")
     .select(
-      "id, beverage_category, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, shop:shops(name), drink:drinks(name)"
+      "id, beverage_category, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, logged_at, shop:shops(name), drink:drinks(name)"
     )
     .eq("user_id", user.id)
+    .order("logged_at", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(8)
     .returns<RecentLogRow[]>();
@@ -102,6 +104,7 @@ export default async function DashboardPage() {
     size: r.size,
     temperature: r.temperature,
     createdAt: r.created_at,
+    loggedAt: r.logged_at,
   }));
 
   const firstName = profile?.first_name || "there";

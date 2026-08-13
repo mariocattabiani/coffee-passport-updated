@@ -15,6 +15,9 @@ export interface LogFormData {
   price: string;
   size: string;
   temperature: Temperature | null;
+  /** "YYYY-MM-DD" if the person picked a backdated date, empty string
+   *  if left as-is (meaning "use now"). */
+  loggedAtDate: string;
 }
 
 export const INITIAL_LOG_FORM_DATA: LogFormData = {
@@ -32,4 +35,5 @@ export const INITIAL_LOG_FORM_DATA: LogFormData = {
   price: "",
   size: "",
   temperature: null,
+  loggedAtDate: "",
 };

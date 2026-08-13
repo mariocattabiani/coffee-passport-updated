@@ -48,9 +48,15 @@ export function PassportHistory({ initialLogs }: { initialLogs: LogCardData[] })
 
     const sorted = [...result];
     if (sort === "newest") {
-      sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      sorted.sort((a, b) => {
+        const diff = new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime();
+        return diff !== 0 ? diff : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
     } else if (sort === "oldest") {
-      sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      sorted.sort((a, b) => {
+        const diff = new Date(a.loggedAt).getTime() - new Date(b.loggedAt).getTime();
+        return diff !== 0 ? diff : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
     } else if (sort === "highest") {
       sorted.sort((a, b) => b.drinkRating - a.drinkRating);
     } else if (sort === "lowest") {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, AlertCircle, MapPin as MapPinIcon, Thermometer } from "lucide-react";
+import { ChevronDown, AlertCircle, MapPin as MapPinIcon, Thermometer, Calendar } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -53,6 +53,17 @@ export function LogForm({ userId }: LogFormProps) {
 
   const priceIsValid = data.price.trim() === "" || (!Number.isNaN(Number(data.price)) && Number(data.price) >= 0 && Number(data.price) < 1000);
 
+  // Today's date in the browser's own local calendar, used only to cap
+  // the date picker so a future date can't even be selected. The real
+  // enforcement happens server-side.
+  const todayLocal = (() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  })();
+
   async function handleSubmit() {
     if (!readyToSubmit || !priceIsValid || submitting) return;
     setSubmitting(true);
@@ -75,6 +86,12 @@ export function LogForm({ userId }: LogFormProps) {
       photoPath = path;
     }
 
+    // The server does all the actual date/timezone math, this is just
+    // the raw picked string plus what the browser reports as its own
+    // timezone, never converted to a Date on this side.
+    const timeZone =
+      typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : null;
+
     const result = await createDrinkLog({
       id: logId,
       shopId: data.shopId!,
@@ -86,6 +103,8 @@ export function LogForm({ userId }: LogFormProps) {
       price: data.price.trim() ? Number(data.price) : null,
       size: data.size.trim() || null,
       temperature: data.temperature,
+      loggedAtDate: data.loggedAtDate || null,
+      timeZone,
     });
 
     if (result?.error) {
@@ -158,14 +177,14 @@ export function LogForm({ userId }: LogFormProps) {
           </div>
 
           {/* SECTION 4: OPTIONAL DETAILS */}
-          <div className="mt-6 border-t border-border/60 pt-4">
+          <div className="mt-6 border-t border-border/60 pt-6">
             <button
               type="button"
               onClick={() => setDetailsOpen((v) => !v)}
-              className="flex w-full items-center justify-between text-sm font-medium text-charcoal/60 hover:text-espresso"
+              className="flex w-full items-center justify-between rounded-lg bg-espresso/5 px-4 py-3.5 text-base font-semibold text-espresso transition-colors hover:bg-espresso/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-espresso"
             >
               Add details (optional)
-              <ChevronDown className={`h-4 w-4 transition-transform ${detailsOpen ? "rotate-180" : ""}`} />
+              <ChevronDown className={`h-5 w-5 transition-transform ${detailsOpen ? "rotate-180" : ""}`} />
             </button>
 
             {detailsOpen && (
@@ -176,6 +195,21 @@ export function LogForm({ userId }: LogFormProps) {
                     preview={data.photoPreview}
                     onChange={(file, preview) => update({ photoFile: file, photoPreview: preview })}
                   />
+                </div>
+
+                <div>
+                  <Label htmlFor="loggedAtDate" className="mb-1.5 flex items-center gap-1 text-xs text-charcoal/60">
+                    <Calendar className="h-3 w-3" />
+                    Date
+                  </Label>
+                  <Input
+                    id="loggedAtDate"
+                    type="date"
+                    value={data.loggedAtDate}
+                    onChange={(e) => update({ loggedAtDate: e.target.value })}
+                    max={todayLocal}
+                  />
+                  <p className="mt-1 text-xs text-charcoal/40">Logging something from earlier?</p>
                 </div>
 
                 <div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, MapPin, Thermometer } from "lucide-react";
+import { AlertCircle, MapPin, Thermometer, Calendar } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,19 @@ import { PhotoUpload } from "@/components/logs/photo-upload";
 import { createClient } from "@/lib/supabase/client";
 import { updateDrinkLog } from "@/lib/drink-logs/actions";
 import type { BeverageCategory, Temperature } from "@/lib/supabase/types";
+
+/**
+ * For a log with no explicit logged_date (never backdated), derives a
+ * reasonable date-input prefill from the stored logged_at instant, using
+ * the *current viewer's own live browser timezone*, not a UTC slice.
+ * Intl.DateTimeFormat with no explicit timeZone option resolves to the
+ * runtime's local timezone, in the browser, that's the person actually
+ * looking at the edit form right now. The en-CA locale formats dates as
+ * "YYYY-MM-DD", exactly what the date input needs.
+ */
+function deriveDisplayDate(isoInstant: string): string {
+  return new Intl.DateTimeFormat("en-CA").format(new Date(isoInstant));
+}
 
 interface EditLogFormProps {
   userId: string;
@@ -29,6 +42,13 @@ interface EditLogFormProps {
     price: string;
     size: string;
     temperature: Temperature | null;
+    /** Explicit "YYYY-MM-DD" if the log has one, null for a log that
+     *  was never backdated (created via "now" before this column
+     *  existed, or simply logged in the moment). */
+    loggedDate: string | null;
+    /** The stored logged_at instant, used only as a fallback source for
+     *  deriving a display date when loggedDate is null. */
+    loggedAtInstant: string;
   };
 }
 
@@ -50,6 +70,15 @@ export function EditLogForm({
   const [size, setSize] = useState(initial.size);
   const [temperature, setTemperature] = useState<Temperature | null>(initial.temperature);
 
+  // The date shown to the user, prefilled from logged_date if present,
+  // otherwise derived from logged_at using the current viewer's own
+  // live timezone. Kept as a stable, un-mutated reference so a later
+  // save can tell whether the person actually changed the date field,
+  // as opposed to just resubmitting the same value the form always
+  // shows.
+  const originalDisplayDate = initial.loggedDate ?? deriveDisplayDate(initial.loggedAtInstant);
+  const [loggedAtDate, setLoggedAtDate] = useState(originalDisplayDate);
+
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(initialPhotoSignedUrl);
   const [photoRemoved, setPhotoRemoved] = useState(false);
@@ -60,6 +89,14 @@ export function EditLogForm({
   const priceIsValid =
     price.trim() === "" || (!Number.isNaN(Number(price)) && Number(price) >= 0 && Number(price) < 1000);
   const readyToSubmit = drinkRating !== null && shopRating !== null;
+
+  const todayLocal = (() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  })();
 
   function handlePhotoChange(file: File | null, preview: string | null) {
     setPhotoFile(file);
@@ -89,6 +126,16 @@ export function EditLogForm({
       newPhotoPath = path;
     }
 
+    const timeZone =
+      typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : null;
+
+    // Only treated as a real change if the value actually differs from
+    // what was originally shown, this is what keeps an unrelated edit
+    // (caption, rating, price, whatever) from silently recalculating
+    // logged_at to noon and populating logged_date when the person
+    // never touched the date field at all.
+    const dateWasChanged = loggedAtDate !== originalDisplayDate;
+
     const result = await updateDrinkLog(logId, {
       drinkRating: drinkRating!,
       shopRating: shopRating!,
@@ -98,6 +145,8 @@ export function EditLogForm({
       temperature,
       newPhotoPath,
       removePhoto: photoRemoved && !newPhotoPath,
+      loggedAtDate: dateWasChanged ? loggedAtDate || null : null,
+      timeZone,
     });
 
     if (result?.error) {
@@ -143,6 +192,20 @@ export function EditLogForm({
           <div>
             <Label className="mb-1.5 block text-xs text-charcoal/60">Photo</Label>
             <PhotoUpload preview={photoPreview} onChange={handlePhotoChange} />
+          </div>
+
+          <div>
+            <Label htmlFor="loggedAtDate" className="mb-1.5 flex items-center gap-1 text-xs text-charcoal/60">
+              <Calendar className="h-3 w-3" />
+              Date
+            </Label>
+            <Input
+              id="loggedAtDate"
+              type="date"
+              value={loggedAtDate}
+              onChange={(e) => setLoggedAtDate(e.target.value)}
+              max={todayLocal}
+            />
           </div>
 
           <div>

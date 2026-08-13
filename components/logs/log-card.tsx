@@ -22,6 +22,11 @@ export interface LogCardData {
   price: number | null;
   size: string | null;
   temperature: "hot" | "iced" | null;
+  /** When the coffee actually happened, this is what's displayed and
+   *  what history/recent-activity sort by. */
+  loggedAt: string;
+  /** When the database row was created, used only as a deterministic
+   *  tiebreak when two logs share the same loggedAt. */
   createdAt: string;
 }
 
@@ -68,7 +73,7 @@ export function LogCard({ log, onDeleted }: LogCardProps) {
           )}
           {log.size && <span>{log.size}</span>}
           {log.price !== null && <span>{formatPrice(log.price)}</span>}
-          <span className="ml-auto">{formatRelativeDate(log.createdAt)}</span>
+          <span className="ml-auto">{formatRelativeDate(log.loggedAt)}</span>
         </div>
 
         <div className="mt-3 flex gap-3 border-t border-border/60 pt-3">
