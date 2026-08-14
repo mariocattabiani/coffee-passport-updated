@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { LogCard, type LogCardData } from "@/components/logs/log-card";
+import { type LogCardData } from "@/components/logs/log-card";
+import { LogCardColumns } from "@/components/logs/log-card-columns";
 import { FirstLogEmptyState } from "@/components/dashboard/first-log-empty-state";
 
 export function RecentActivity({ initialLogs }: { initialLogs: LogCardData[] }) {
@@ -23,11 +24,5 @@ export function RecentActivity({ initialLogs }: { initialLogs: LogCardData[] }) 
     return <FirstLogEmptyState />;
   }
 
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {logs.map((log) => (
-        <LogCard key={log.id} log={log} onDeleted={handleDeleted} />
-      ))}
-    </div>
-  );
+  return <LogCardColumns logs={logs} onDeleted={handleDeleted} />;
 }

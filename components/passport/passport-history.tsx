@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown } from "lucide-react";
 
-import { LogCard, type LogCardData } from "@/components/logs/log-card";
+import { type LogCardData } from "@/components/logs/log-card";
+import { LogCardColumns } from "@/components/logs/log-card-columns";
 
 type FilterValue = "all" | "coffee" | "tea" | "hot" | "iced";
 type SortValue = "newest" | "oldest" | "highest" | "lowest";
@@ -123,11 +124,7 @@ export function PassportHistory({ initialLogs }: { initialLogs: LogCardData[] })
           No logs match this filter.
         </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {visibleLogs.map((log) => (
-            <LogCard key={log.id} log={log} onDeleted={handleDeleted} />
-          ))}
-        </div>
+        <LogCardColumns logs={visibleLogs} onDeleted={handleDeleted} />
       )}
     </section>
   );

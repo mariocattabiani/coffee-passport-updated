@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Coffee, MapPin, Flame, Snowflake } from "lucide-react";
 
 import { StarDisplay } from "@/components/logs/star-display";
@@ -6,6 +7,8 @@ export interface FavoriteSummary {
   title: string;
   subtitle: string;
   rating: number;
+  /** Present only for the favorite café, used to link to its page. */
+  shopId?: string;
   /** A photo pulled from one of the user's own logs of this drink. */
   photoUrl: string | null;
   logCount?: number;
@@ -73,8 +76,8 @@ function FavoriteCafeCard({ data }: { data: FavoriteSummary | null }) {
   // photo treatment automatically, no redesign required.
   const hasCanonicalImage = Boolean(data.canonicalImageUrl);
 
-  return (
-    <div className="overflow-hidden rounded-xl border border-sage/25 bg-sage/[0.06] shadow-soft">
+  const cardContent = (
+    <>
       {hasCanonicalImage ? (
         <div className="relative h-36 w-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -110,6 +113,23 @@ function FavoriteCafeCard({ data }: { data: FavoriteSummary | null }) {
           )}
         </div>
       </div>
+    </>
+  );
+
+  if (data.shopId) {
+    return (
+      <Link
+        href={`/shops/${data.shopId}`}
+        className="block overflow-hidden rounded-xl border border-sage/25 bg-sage/[0.06] shadow-soft transition-shadow hover:shadow-card"
+      >
+        {cardContent}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-sage/25 bg-sage/[0.06] shadow-soft">
+      {cardContent}
     </div>
   );
 }

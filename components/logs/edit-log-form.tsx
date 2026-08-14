@@ -205,6 +205,7 @@ export function EditLogForm({
               value={loggedAtDate}
               onChange={(e) => setLoggedAtDate(e.target.value)}
               max={todayLocal}
+              className="w-full min-w-0 max-w-full"
             />
           </div>
 

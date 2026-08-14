@@ -5,16 +5,18 @@ import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/dashboard/logout-button";
 
 interface AuthenticatedHeaderProps {
-  active: "dashboard" | "passport";
+  /** Omit on screens that aren't Dashboard or Passport themselves (a
+   *  café page, for instance), neither nav item gets highlighted. */
+  active?: "dashboard" | "passport";
 }
 
 export function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) {
   return (
     <>
-      {/* Desktop: full nav in one row, logout included here. Mobile:
-          just the logo, the bottom tab bar below carries navigation
-          instead of squeezing everything into a thin top bar. */}
-      <header className="border-b border-border/40">
+      {/* Desktop: full nav in one row, logout included here, sticky
+          while scrolling. Mobile: just the logo, static (not sticky),
+          the fixed bottom tab bar below carries navigation instead. */}
+      <header className="border-b border-border/40 sm:sticky sm:top-0 sm:z-40 sm:border-border/60 sm:bg-crema/90 sm:backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2">
             <Coffee className="h-5 w-5 text-espresso" />

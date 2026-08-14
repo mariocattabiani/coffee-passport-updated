@@ -19,12 +19,21 @@ import type { Drink, Shop, Temperature } from "@/lib/supabase/types";
 
 interface LogFormProps {
   userId: string;
+  /** Preselects a café when arriving from its page's "Log a drink" CTA,
+   *  null for the normal empty-search starting state. Either way this
+   *  feeds the same GoogleShopPicker, so "Change" always falls back
+   *  into the same Places search, no separate logging path. */
+  initialShop?: Shop | null;
 }
 
-export function LogForm({ userId }: LogFormProps) {
+export function LogForm({ userId, initialShop = null }: LogFormProps) {
   const router = useRouter();
-  const [data, setData] = useState<LogFormData>(INITIAL_LOG_FORM_DATA);
-  const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
+  const [data, setData] = useState<LogFormData>(() =>
+    initialShop
+      ? { ...INITIAL_LOG_FORM_DATA, shopId: initialShop.id, shopName: initialShop.name }
+      : INITIAL_LOG_FORM_DATA
+  );
+  const [selectedShop, setSelectedShop] = useState<Shop | null>(initialShop);
   const [selectedDrink, setSelectedDrink] = useState<Drink | null>(null);
   const [logId] = useState(() => crypto.randomUUID());
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -208,6 +217,7 @@ export function LogForm({ userId }: LogFormProps) {
                     value={data.loggedAtDate}
                     onChange={(e) => update({ loggedAtDate: e.target.value })}
                     max={todayLocal}
+                    className="w-full min-w-0 max-w-full"
                   />
                   <p className="mt-1 text-xs text-charcoal/40">Logging something from earlier?</p>
                 </div>

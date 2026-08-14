@@ -11,6 +11,7 @@ import type { BeverageCategory } from "@/lib/supabase/types";
 
 export interface LogCardData {
   id: string;
+  shopId: string;
   shopName: string;
   drinkName: string;
   beverageCategory: BeverageCategory;
@@ -53,7 +54,9 @@ export function LogCard({ log, onDeleted }: LogCardProps) {
             <p className="font-medium text-charcoal">{log.drinkName}</p>
             <p className="flex items-center gap-1 text-xs text-charcoal/50">
               <MapPin className="h-3 w-3" />
-              {log.shopName}
+              <Link href={`/shops/${log.shopId}`} className="hover:text-espresso hover:underline">
+                {log.shopName}
+              </Link>
             </p>
           </div>
           <StarDisplay rating={log.drinkRating} size="h-3 w-3" showValue />

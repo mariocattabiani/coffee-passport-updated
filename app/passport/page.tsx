@@ -88,6 +88,7 @@ export default async function PassportPage() {
 
   const historyLogs: LogCardData[] = logs.map((l) => ({
     id: l.id,
+    shopId: l.shop_id,
     shopName: l.shop?.name ?? "Unknown shop",
     drinkName: l.drink?.name ?? "Unknown drink",
     beverageCategory: l.beverage_category,
@@ -184,6 +185,7 @@ export default async function PassportPage() {
         rating: Math.round((favoriteShopAgg.ratingSum / favoriteShopAgg.count) * 10) / 10,
         photoUrl: favoriteShopAgg.photoUrl,
         logCount: favoriteShopAgg.count,
+        shopId: favoriteShopAgg.key,
         // No canonical shop image data source exists yet (that's the
         // future Places/map work), left explicitly null rather than
         // omitted so the intent is clear at the call site.

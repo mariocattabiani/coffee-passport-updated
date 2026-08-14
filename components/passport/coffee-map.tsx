@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { MarkerClusterer, type Renderer } from "@googlemaps/markerclusterer";
 
 import { loadMapsLibrary, loadMarkerLibrary, loadCoreLibrary } from "@/lib/google-maps/loader";
@@ -111,10 +112,27 @@ export function CoffeeMap({ shops }: CoffeeMapProps) {
           fullscreenControl: false,
         });
 
+        // TEMPORARY DEV-ONLY DIAGNOSTIC: confirms whether the active Map
+        // ID actually supports Advanced Markers. Logs only the one
+        // boolean, never the key, Map ID, coordinates, or shop/user
+        // data. Safe to remove once the marker visibility question is
+        // resolved.
+        if (process.env.NODE_ENV !== "production") {
+          map.addListener("mapcapabilities_changed", () => {
+            const capabilities = map.getMapCapabilities();
+            console.warn("[Coffee Map diagnostic] mapcapabilities_changed:", {
+              isAdvancedMarkersAvailable: capabilities.isAdvancedMarkersAvailable,
+            });
+          });
+
+          const initialCapabilities = map.getMapCapabilities();
+          console.warn("[Coffee Map diagnostic] initial capabilities:", {
+            isAdvancedMarkersAvailable: initialCapabilities.isAdvancedMarkersAvailable,
+          });
+        }
+
         const bounds = new LatLngBounds();
-        shops.forEach((shop) =>
-          bounds.extend({ lat: shop.latitude, lng: shop.longitude })
-        );
+        shops.forEach((shop) => bounds.extend({ lat: shop.latitude, lng: shop.longitude }));
 
         map.fitBounds(bounds);
         google.maps.event.addListenerOnce(map, "bounds_changed", () => {
@@ -131,6 +149,11 @@ export function CoffeeMap({ shops }: CoffeeMapProps) {
           });
 
         if (shops.length === 1) {
+          // Nothing to cluster with exactly one café. MarkerClusterer
+          // takes over map-attachment for markers passed to it, and
+          // that path was silently failing to render a lone marker.
+          // Attaching the marker to the map directly sidesteps
+          // MarkerClusterer entirely for this case.
           const shop = shops[0];
           const pin = buildPin();
 
@@ -140,8 +163,8 @@ export function CoffeeMap({ shops }: CoffeeMapProps) {
             title: shop.name,
             content: pin.element,
           });
-
           marker.addListener("click", () => setSelected(shop));
+
           singleMarker = marker;
         } else {
           const markers = shops.map((shop) => {
@@ -151,7 +174,6 @@ export function CoffeeMap({ shops }: CoffeeMapProps) {
               title: shop.name,
               content: pin.element,
             });
-
             marker.addListener("click", () => setSelected(shop));
             return marker;
           });
@@ -162,9 +184,19 @@ export function CoffeeMap({ shops }: CoffeeMapProps) {
             renderer: createClusterRenderer(AdvancedMarkerElement),
           });
         }
-      } catch {
+      } catch (err) {
         if (!cancelled) {
           setError("The map couldn't load right now. Please try again later.");
+        }
+        if (process.env.NODE_ENV !== "production") {
+          // TEMPORARY, this debugging round only: logs the actual
+          // caught error so we can see what's really throwing, instead
+          // of a generic message. The error object itself doesn't
+          // contain the API key, Map ID, coordinates, or shop/user
+          // data, those never enter this catch block, only whatever
+          // Google's own SDK or our marker-construction code threw.
+          // Revert to a generic message once this is resolved.
+          console.error("Coffee Map marker initialization error:", err);
         }
       }
     }
@@ -173,12 +205,10 @@ export function CoffeeMap({ shops }: CoffeeMapProps) {
 
     return () => {
       cancelled = true;
-
       if (singleMarker) {
         singleMarker.map = null;
         singleMarker = null;
       }
-
       clusterer?.clearMarkers();
       clusterer = null;
     };
@@ -203,9 +233,7 @@ export function CoffeeMap({ shops }: CoffeeMapProps) {
       {selected && (
         <div className="mt-3 flex items-start justify-between gap-4 rounded-xl border border-border bg-white p-4 shadow-soft">
           <div>
-            <p className="font-heading text-base font-semibold text-espresso">
-              {selected.name}
-            </p>
+            <p className="font-heading text-base font-semibold text-espresso">{selected.name}</p>
             {(selected.city || selected.state) && (
               <p className="text-sm text-charcoal/50">
                 {[selected.city, selected.state].filter(Boolean).join(", ")}
@@ -213,17 +241,17 @@ export function CoffeeMap({ shops }: CoffeeMapProps) {
             )}
             <div className="mt-1.5 flex items-center gap-3 text-xs text-charcoal/50">
               <span>
-                {selected.visitCount}{" "}
-                {selected.visitCount === 1 ? "visit" : "visits"}
+                {selected.visitCount} {selected.visitCount === 1 ? "visit" : "visits"}
               </span>
-              <StarDisplay
-                rating={selected.avgShopRating}
-                size="h-3 w-3"
-                showValue
-              />
+              <StarDisplay rating={selected.avgShopRating} size="h-3 w-3" showValue />
             </div>
+            <Link
+              href={`/shops/${selected.id}`}
+              className="mt-2 inline-block text-xs font-semibold text-sage hover:text-espresso"
+            >
+              View café
+            </Link>
           </div>
-
           <button
             type="button"
             onClick={() => setSelected(null)}

@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 
 interface RecentLogRow {
   id: string;
+  shop_id: string;
   beverage_category: BeverageCategory;
   drink_rating: number;
   shop_rating: number;
@@ -67,7 +68,7 @@ export default async function DashboardPage() {
   const { data: recentRows } = await supabase
     .from("drink_logs")
     .select(
-      "id, beverage_category, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, logged_at, shop:shops(name), drink:drinks(name)"
+      "id, shop_id, beverage_category, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, logged_at, shop:shops(name), drink:drinks(name)"
     )
     .eq("user_id", user.id)
     .order("logged_at", { ascending: false })
@@ -92,6 +93,7 @@ export default async function DashboardPage() {
 
   const recentLogs: LogCardData[] = recent.map((r) => ({
     id: r.id,
+    shopId: r.shop_id,
     shopName: r.shop?.name ?? "Unknown shop",
     drinkName: r.drink?.name ?? "Unknown drink",
     beverageCategory: r.beverage_category,
