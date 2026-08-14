@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { Coffee, IdCard, Plus } from "lucide-react";
+import { Coffee, Compass, IdCard, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/dashboard/logout-button";
 
 interface AuthenticatedHeaderProps {
-  /** Omit on screens that aren't Dashboard or Passport themselves (a
-   *  café page, for instance), neither nav item gets highlighted. */
-  active?: "dashboard" | "passport";
+  /** Omit on screens that aren't Dashboard, Discover, or Passport
+   *  themselves (a café page, for instance), no nav item gets
+   *  highlighted. */
+  active?: "dashboard" | "discover" | "passport";
 }
 
 export function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) {
@@ -29,6 +30,11 @@ export function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) {
                 Dashboard
               </Link>
             </Button>
+            <Button asChild variant={active === "discover" ? "secondary" : "ghost"} size="sm">
+              <Link href="/discover" aria-current={active === "discover" ? "page" : undefined}>
+                Discover
+              </Link>
+            </Button>
             <Button asChild variant={active === "passport" ? "secondary" : "ghost"} size="sm">
               <Link href="/passport" aria-current={active === "passport" ? "page" : undefined}>
                 Passport
@@ -45,8 +51,9 @@ export function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) {
         </div>
       </header>
 
-      {/* Mobile-only bottom tab bar. Three destinations only, logout
-          lives on the Passport page instead, it isn't a primary
+      {/* Mobile-only bottom tab bar. Four destinations: Dashboard,
+          Discover, Log (still visually raised/prominent), Passport.
+          Logout lives on the Passport page instead, it isn't a primary
           product destination. Padded for the device's safe area so it
           never sits under a phone's home indicator. */}
       <nav
@@ -63,6 +70,16 @@ export function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) {
         >
           <Coffee className="h-5 w-5" />
           Dashboard
+        </Link>
+        <Link
+          href="/discover"
+          aria-current={active === "discover" ? "page" : undefined}
+          className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium ${
+            active === "discover" ? "text-espresso" : "text-charcoal/40"
+          }`}
+        >
+          <Compass className="h-5 w-5" />
+          Discover
         </Link>
         <Link href="/log" className="flex flex-1 flex-col items-center gap-1 py-1.5" aria-label="Log a coffee">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-espresso text-crema shadow-card">

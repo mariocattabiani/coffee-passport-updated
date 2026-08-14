@@ -6,6 +6,7 @@ import type { Shop, BeverageCategory, Temperature } from "@/lib/supabase/types";
 import { AuthenticatedHeader } from "@/components/dashboard/authenticated-header";
 import { ShopHero } from "@/components/shops/shop-hero";
 import { TopDrinks, type TopDrink } from "@/components/shops/top-drinks";
+import { WhatPeopleAreDrinking, type ShopActivityItem } from "@/components/shops/what-people-are-drinking";
 import { YourPassportHere, type YourPassportStats } from "@/components/shops/your-passport-here";
 import type { LogCardData } from "@/components/logs/log-card";
 
@@ -41,6 +42,21 @@ interface TopDrinkRow {
   rating_count: number;
 }
 
+interface ShopActivityRow {
+  log_id: string;
+  logged_at: string;
+  drink_rating: number;
+  caption: string | null;
+  temperature: Temperature | null;
+  photo_path: string | null;
+  drink_id: string;
+  drink_name: string;
+  category: BeverageCategory;
+  username: string | null;
+  first_name: string | null;
+  avatar_url: string | null;
+}
+
 export async function generateMetadata({ params }: ShopPageProps): Promise<Metadata> {
   const { id } = await params;
   const supabase = await createClient();
@@ -62,29 +78,33 @@ export default async function ShopPage({ params }: ShopPageProps) {
   const { data: shop } = await supabase.from("shops").select("*").eq("id", id).maybeSingle<Shop>();
   if (!shop) notFound();
 
-  const [{ data: ratingSummary }, { data: topDrinksRaw }, { data: ownLogsRaw }] = await Promise.all([
-    supabase.rpc("get_shop_rating_summary", { target_shop_id: id }).maybeSingle<RatingSummaryRow>(),
-supabase.rpc("get_shop_top_drinks", {
-  target_shop_id: id,
-  result_limit: 10,
-}),
-    supabase
-      .from("drink_logs")
-      .select(
-        "id, drink_rating, shop_rating, caption, photo_url, price, size, temperature, beverage_category, created_at, logged_at, drink:drinks(id,name)"
-      )
-      .eq("shop_id", id)
-      .eq("user_id", user.id)
-      .order("logged_at", { ascending: false })
-      .order("created_at", { ascending: false })
-      .returns<OwnLogRow[]>(),
-  ]);
+  const [{ data: ratingSummary }, { data: topDrinksData }, { data: ownLogsRaw }, { data: activityData }] =
+    await Promise.all([
+      supabase.rpc("get_shop_rating_summary", { target_shop_id: id }).maybeSingle<RatingSummaryRow>(),
+      supabase.rpc("get_shop_top_drinks", { target_shop_id: id, result_limit: 10 }),
+      supabase
+        .from("drink_logs")
+        .select(
+          "id, drink_rating, shop_rating, caption, photo_url, price, size, temperature, beverage_category, created_at, logged_at, drink:drinks(id,name)"
+        )
+        .eq("shop_id", id)
+        .eq("user_id", user.id)
+        .order("logged_at", { ascending: false })
+        .order("created_at", { ascending: false })
+        .returns<OwnLogRow[]>(),
+      supabase.rpc("get_shop_public_activity", { target_shop_id: id, result_limit: 12 }),
+    ]);
+
+  // RPC results are cast after the fact rather than chaining
+  // .returns<T[]>() onto the rpc() call itself, that chained pattern
+  // has previously caused a TypeScript build failure with this
+  // Supabase client version.
+  const topDrinksRaw = (topDrinksData ?? []) as TopDrinkRow[];
+  const activityRaw = (activityData ?? []) as ShopActivityRow[];
 
   const ownLogs = ownLogsRaw ?? [];
 
-  const topDrinkRows = (topDrinksRaw ?? []) as TopDrinkRow[];
-
-const topDrinks: TopDrink[] = topDrinkRows.map((d) => ({
+  const topDrinks: TopDrink[] = (topDrinksRaw ?? []).map((d) => ({
     drinkId: d.drink_id,
     drinkName: d.drink_name,
     category: d.category,
@@ -103,6 +123,37 @@ const topDrinks: TopDrink[] = topDrinkRows.map((d) => ({
       if (s.signedUrl && !s.error) signedUrlByPath.set(s.path ?? "", s.signedUrl);
     });
   }
+
+  const activity = activityRaw ?? [];
+
+  // Separate, short-lived (5 minute) signed URLs for public activity
+  // photos, these belong to other people's public logs, not this
+  // viewer's own, the short TTL limits exposure if one of them flips
+  // to private shortly after this page renders.
+  const activityPhotoPaths = activity.map((a) => a.photo_path).filter((p): p is string => !!p);
+  const activitySignedUrlByPath = new Map<string, string>();
+  if (activityPhotoPaths.length > 0) {
+    const { data: signed } = await supabase.storage
+      .from("drink-photos")
+      .createSignedUrls(activityPhotoPaths, 5 * 60);
+    signed?.forEach((s) => {
+      if (s.signedUrl && !s.error) activitySignedUrlByPath.set(s.path ?? "", s.signedUrl);
+    });
+  }
+
+  const activityItems: ShopActivityItem[] = activity.map((a) => ({
+    logId: a.log_id,
+    loggedAt: a.logged_at,
+    drinkRating: a.drink_rating,
+    caption: a.caption,
+    temperature: a.temperature,
+    photoUrl: a.photo_path ? activitySignedUrlByPath.get(a.photo_path) ?? null : null,
+    drinkName: a.drink_name,
+    category: a.category,
+    username: a.username,
+    firstName: a.first_name,
+    avatarUrl: a.avatar_url,
+  }));
 
   const historyLogs: LogCardData[] = ownLogs.map((l) => ({
     id: l.id,
@@ -172,6 +223,8 @@ const topDrinks: TopDrink[] = topDrinkRows.map((d) => ({
         />
 
         <TopDrinks drinks={topDrinks} shopId={shop.id} />
+
+        <WhatPeopleAreDrinking items={activityItems} />
 
         <YourPassportHere initialLogs={historyLogs} stats={stats} />
       </main>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, MapPin, Thermometer, Calendar } from "lucide-react";
+import { AlertCircle, MapPin, Thermometer, Calendar, Globe, Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -49,6 +49,7 @@ interface EditLogFormProps {
     /** The stored logged_at instant, used only as a fallback source for
      *  deriving a display date when loggedDate is null. */
     loggedAtInstant: string;
+    visibility: "public" | "private";
   };
 }
 
@@ -69,6 +70,7 @@ export function EditLogForm({
   const [price, setPrice] = useState(initial.price);
   const [size, setSize] = useState(initial.size);
   const [temperature, setTemperature] = useState<Temperature | null>(initial.temperature);
+  const [visibility, setVisibility] = useState<"public" | "private">(initial.visibility);
 
   // The date shown to the user, prefilled from logged_date if present,
   // otherwise derived from logged_at using the current viewer's own
@@ -147,6 +149,7 @@ export function EditLogForm({
       removePhoto: photoRemoved && !newPhotoPath,
       loggedAtDate: dateWasChanged ? loggedAtDate || null : null,
       timeZone,
+      visibility,
     });
 
     if (result?.error) {
@@ -276,6 +279,39 @@ export function EditLogForm({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <Label className="mb-1.5 block text-xs text-charcoal/60">Visibility</Label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setVisibility("public")}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-medium transition-colors ${
+                  visibility === "public"
+                    ? "border-espresso bg-espresso text-crema"
+                    : "border-border bg-white text-charcoal hover:border-espresso/40"
+                }`}
+              >
+                <Globe className="h-3.5 w-3.5" />
+                Public
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisibility("private")}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-medium transition-colors ${
+                  visibility === "private"
+                    ? "border-espresso bg-espresso text-crema"
+                    : "border-border bg-white text-charcoal hover:border-espresso/40"
+                }`}
+              >
+                <Lock className="h-3.5 w-3.5" />
+                Private
+              </button>
+            </div>
+            <p className="mt-1.5 text-xs text-charcoal/40">
+              {visibility === "public" ? "Anyone on Coffee Passport can see this" : "Only you can see this"}
+            </p>
           </div>
         </div>
 

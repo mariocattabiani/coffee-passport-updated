@@ -68,6 +68,7 @@ export default async function EditLogPage({ params }: { params: Promise<{ id: st
           temperature: log.temperature,
           loggedDate: log.logged_date,
           loggedAtInstant: log.logged_at,
+          visibility: log.visibility,
         }}
       />
     </div>

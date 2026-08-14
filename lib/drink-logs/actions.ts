@@ -39,6 +39,10 @@ function isValidTemperature(t: string | null) {
   return t === null || t === "hot" || t === "iced";
 }
 
+function isValidVisibility(v: string) {
+  return v === "public" || v === "private";
+}
+
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function isValidTimeZone(tz: string): boolean {
@@ -148,6 +152,7 @@ interface RatableFields {
   price: number | null;
   size: string | null;
   temperature: Temperature | null;
+  visibility: "public" | "private";
 }
 
 // Shared by both create and edit. The database's check constraints are
@@ -167,6 +172,9 @@ function validateLogFields(input: RatableFields): string | null {
     return "That size is a bit too long.";
   }
   if (!isValidTemperature(input.temperature)) {
+    return "Something went wrong with that request. Please try again.";
+  }
+  if (!isValidVisibility(input.visibility)) {
     return "Something went wrong with that request. Please try again.";
   }
   return null;
@@ -327,6 +335,7 @@ export async function createDrinkLog(input: CreateDrinkLogInput) {
     price: input.price,
     size: input.size,
     temperature: input.temperature,
+    visibility: input.visibility,
     ...(loggedAt ? { logged_at: loggedAt, logged_date: loggedDate } : {}),
   });
 
@@ -424,6 +433,7 @@ export async function updateDrinkLog(logId: string, input: UpdateDrinkLogInput) 
     price: input.price,
     size: input.size,
     temperature: input.temperature,
+    visibility: input.visibility,
     updated_at: new Date().toISOString(),
   };
 

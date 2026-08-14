@@ -18,6 +18,8 @@ export interface LogFormData {
   /** "YYYY-MM-DD" if the person picked a backdated date, empty string
    *  if left as-is (meaning "use now"). */
   loggedAtDate: string;
+  /** Public by default, per the Sprint 3E product decision. */
+  visibility: "public" | "private";
 }
 
 export const INITIAL_LOG_FORM_DATA: LogFormData = {
@@ -36,4 +38,5 @@ export const INITIAL_LOG_FORM_DATA: LogFormData = {
   size: "",
   temperature: null,
   loggedAtDate: "",
+  visibility: "public",
 };

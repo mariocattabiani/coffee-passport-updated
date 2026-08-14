@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PATHS = ["/dashboard", "/onboarding", "/log", "/passport", "/shops"];
+const PROTECTED_PATHS = ["/dashboard", "/onboarding", "/log", "/passport", "/shops", "/discover"];
 const AUTH_PATHS = ["/login", "/signup"];
 
 // A plain pathname.startsWith("/log") also matches "/login", since
@@ -90,7 +90,8 @@ export async function middleware(request: NextRequest) {
       (matchesPath(pathname, "/dashboard") ||
         matchesPath(pathname, "/log") ||
         matchesPath(pathname, "/passport") ||
-        matchesPath(pathname, "/shops")) &&
+        matchesPath(pathname, "/shops") ||
+        matchesPath(pathname, "/discover")) &&
       !onboarded
     ) {
       const url = request.nextUrl.clone();
@@ -121,6 +122,7 @@ export const config = {
     "/log/:path*",
     "/passport/:path*",
     "/shops/:path*",
+    "/discover/:path*",
     "/login",
     "/signup",
   ],

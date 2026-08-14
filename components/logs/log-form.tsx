@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, AlertCircle, MapPin as MapPinIcon, Thermometer, Calendar } from "lucide-react";
+import { ChevronDown, AlertCircle, MapPin as MapPinIcon, Thermometer, Calendar, Globe, Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -114,6 +114,7 @@ export function LogForm({ userId, initialShop = null }: LogFormProps) {
       temperature: data.temperature,
       loggedAtDate: data.loggedAtDate || null,
       timeZone,
+      visibility: data.visibility,
     });
 
     if (result?.error) {
@@ -290,9 +291,71 @@ export function LogForm({ userId, initialShop = null }: LogFormProps) {
                     ))}
                   </div>
                 </div>
+
+                <div>
+                  <Label className="mb-1.5 block text-xs text-charcoal/60">Visibility</Label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => update({ visibility: "public" })}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-medium transition-colors ${
+                        data.visibility === "public"
+                          ? "border-espresso bg-espresso text-crema"
+                          : "border-border bg-white text-charcoal hover:border-espresso/40"
+                      }`}
+                    >
+                      <Globe className="h-3.5 w-3.5" />
+                      Public
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => update({ visibility: "private" })}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-medium transition-colors ${
+                        data.visibility === "private"
+                          ? "border-espresso bg-espresso text-crema"
+                          : "border-border bg-white text-charcoal hover:border-espresso/40"
+                      }`}
+                    >
+                      <Lock className="h-3.5 w-3.5" />
+                      Private
+                    </button>
+                  </div>
+                  <p className="mt-1.5 text-xs text-charcoal/40">
+                    {data.visibility === "public"
+                      ? "Anyone on Coffee Passport can see this"
+                      : "Only you can see this"}
+                  </p>
+                </div>
               </div>
             )}
           </div>
+
+          {/* Passive visibility disclosure, always visible near submit
+              regardless of whether Add details is expanded, since new
+              logs are public by default and the person should know
+              that even if they never open this section. Doubles as a
+              one-tap shortcut to flip it without opening Add details. */}
+          <button
+            type="button"
+            onClick={() => update({ visibility: data.visibility === "public" ? "private" : "public" })}
+            className="mt-4 flex w-full items-start gap-2.5 rounded-lg bg-charcoal/[0.03] px-3.5 py-3 text-left transition-colors hover:bg-charcoal/[0.06]"
+          >
+            {data.visibility === "public" ? (
+              <Globe className="mt-0.5 h-4 w-4 shrink-0 text-sage" />
+            ) : (
+              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-charcoal/50" />
+            )}
+            <div>
+              <p className="text-sm font-medium text-charcoal">
+                {data.visibility === "public" ? "Public" : "Private"}
+              </p>
+              <p className="text-xs text-charcoal/50">
+                {data.visibility === "public"
+                  ? "Anyone on Coffee Passport can see this"
+                  : "Only you can see this"}
+              </p>
+            </div>
+          </button>
 
           {error && (
             <div className="mt-4 flex items-start gap-2 rounded-lg bg-error/10 p-3 text-sm text-error">

@@ -67,5 +67,6 @@ export interface DrinkLog {
   created_at: string;
   logged_at: string;
   logged_date: string | null;
+  visibility: "public" | "private";
   updated_at: string;
 }
