@@ -27,8 +27,10 @@ interface FeedCardProps {
 /**
  * Deliberately separate from LogCard: this represents someone else's
  * public post, not the owner's own log, so it carries an identity
- * header instead of Edit/Delete controls. Username isn't linked yet,
- * full public profile pages are Sprint 3F's job.
+ * header instead of Edit/Delete controls. The identity block links to
+ * the person's public profile, not the whole card, that stays reserved
+ * for the café link inside the card body, so there's never a nested
+ * or ambiguous click target.
  */
 export function FeedCard({ item }: FeedCardProps) {
   const displayName = item.firstName || item.username || "Someone";
@@ -36,20 +38,34 @@ export function FeedCard({ item }: FeedCardProps) {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-white shadow-soft">
       <div className="flex items-center gap-2.5 px-4 pt-4">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-latte/30">
-          {item.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={item.avatarUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <User className="h-4 w-4 text-espresso/40" />
-          )}
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-charcoal">
-            {displayName}
-            {item.username && <span className="ml-1 font-normal text-charcoal/40">@{item.username}</span>}
-          </p>
-        </div>
+        {item.username ? (
+          <Link href={`/users/${item.username}`} className="flex min-w-0 items-center gap-2.5 hover:opacity-80">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-latte/30">
+              {item.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.avatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <User className="h-4 w-4 text-espresso/40" />
+              )}
+            </div>
+            <p className="truncate text-sm font-medium text-charcoal">
+              {displayName}
+              <span className="ml-1 font-normal text-charcoal/40">@{item.username}</span>
+            </p>
+          </Link>
+        ) : (
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-latte/30">
+              {item.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.avatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <User className="h-4 w-4 text-espresso/40" />
+              )}
+            </div>
+            <p className="truncate text-sm font-medium text-charcoal">{displayName}</p>
+          </div>
+        )}
         <p className="ml-auto shrink-0 text-xs text-charcoal/40">{formatRelativeDate(item.loggedAt)}</p>
       </div>
 
