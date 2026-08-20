@@ -220,7 +220,7 @@ export function CoffeeMap({ shops }: CoffeeMapProps) {
 
   return (
     <div>
-      <div className="relative h-80 w-full overflow-hidden rounded-2xl border border-border/60 shadow-soft sm:h-[420px]">
+      <div className="relative h-80 w-full overflow-hidden rounded-2xl border border-border/60 shadow-soft sm:h-[500px]">
         {error ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-espresso/5 px-6 text-center">
             <p className="text-sm text-charcoal/50">{error}</p>

@@ -96,6 +96,7 @@ export function GoogleShopPicker({ selectedShop, onSelect, onChange }: GoogleSho
         address: place.formattedAddress,
         city: place.city,
         state: place.state,
+        country: place.country,
         latitude: place.latitude,
         longitude: place.longitude,
       });

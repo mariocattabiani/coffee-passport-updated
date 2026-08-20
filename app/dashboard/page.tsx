@@ -10,6 +10,9 @@ import { DashboardHero } from "@/components/dashboard/dashboard-hero";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { ComingSoonStrip } from "@/components/dashboard/coming-soon-strip";
 import { RecentActivity } from "@/components/logs/recent-activity";
+import { ContinueYourPassport } from "@/components/dashboard/continue-your-passport";
+import { evaluatePassportAchievements, getEarnedAchievements } from "@/lib/passport/actions";
+import { computeAchievementProgress, selectUpNext } from "@/lib/passport/achievements";
 import type { LogCardData } from "@/components/logs/log-card";
 
 export const metadata: Metadata = {
@@ -52,18 +55,53 @@ export default async function DashboardPage() {
   // Lightweight query across every log, just for the stat tiles. Counts
   // are computed here in code rather than a stored counter or a
   // database view, this is plenty fast at this scale and stays
-  // trivially correct as logs are added, edited, or removed.
+  // trivially correct as logs are added, edited, or removed. Shop
+  // city/state is embedded here too now, still one query, so the
+  // Continue Your Passport card can consider a city-based goal the
+  // same way Passport itself does.
   const { data: statRows } = await supabase
     .from("drink_logs")
-    .select("shop_id, drink_id, beverage_category")
+    .select("shop_id, drink_id, beverage_category, shop:shops(city,state)")
     .eq("user_id", user.id)
-    .returns<{ shop_id: string; drink_id: string; beverage_category: BeverageCategory }[]>();
+    .returns<
+      {
+        shop_id: string;
+        drink_id: string;
+        beverage_category: BeverageCategory;
+        shop: { city: string | null; state: string | null } | null;
+      }[]
+    >();
 
   const allLogs = statRows ?? [];
   const coffeesLogged = allLogs.filter((l) => l.beverage_category === "coffee").length;
   const teasLogged = allLogs.filter((l) => l.beverage_category === "tea").length;
   const cafesVisited = new Set(allLogs.map((l) => l.shop_id)).size;
   const uniqueDrinks = new Set(allLogs.map((l) => l.drink_id)).size;
+
+  // Evaluate before reading: the person may have just been redirected
+  // here straight from creating a log that crossed a threshold, if we
+  // read earned achievements first, Dashboard could show "0 more until
+  // Coffee 25" for something already qualified for but not yet
+  // persisted. This RPC is idempotent and constraint-backed, so calling
+  // it here in addition to Passport's own call is safe, this is a
+  // second, not exclusive, evaluation point.
+  await evaluatePassportAchievements();
+  const earnedAchievements = await getEarnedAchievements();
+  const achievementProgress = computeAchievementProgress(
+    {
+      totalLogs: allLogs.length,
+      coffeeLogs: coffeesLogged,
+      uniqueShops: cafesVisited,
+      uniqueCities: new Set(
+        allLogs
+          .filter((l) => l.shop?.city && l.shop?.state)
+          .map((l) => `${l.shop!.city!.toLowerCase().trim()}|${l.shop!.state!.toLowerCase().trim()}`)
+      ).size,
+      teaLogs: teasLogged,
+    },
+    earnedAchievements
+  );
+  const closestGoal = selectUpNext(achievementProgress)[0] ?? null;
 
   const { data: recentRows } = await supabase
     .from("drink_logs")
@@ -117,6 +155,8 @@ export default async function DashboardPage() {
 
       <main className="container max-w-5xl space-y-8 py-6 sm:space-y-10 sm:py-10">
         <DashboardHero firstName={firstName} />
+
+        <ContinueYourPassport goal={closestGoal} />
 
         {/* STATS */}
         <div className="grid grid-cols-3 gap-2.5 sm:gap-4">

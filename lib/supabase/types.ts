@@ -32,6 +32,7 @@ export interface Shop {
   address: string | null;
   city: string | null;
   state: string | null;
+  country: string | null;
   latitude: number | null;
   longitude: number | null;
   google_place_id: string | null;

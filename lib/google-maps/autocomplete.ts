@@ -13,6 +13,7 @@ export interface SelectedShopPlace {
   formattedAddress: string | null;
   city: string | null;
   state: string | null;
+  country: string | null;
   latitude: number | null;
   longitude: number | null;
 }
@@ -91,6 +92,9 @@ export class ShopSearchSession {
       null;
     const state =
       components.find((c) => c.types.includes("administrative_area_level_1"))?.shortText ?? null;
+    // Already present in the same addressComponents array this call
+    // already fetches, no new field, no new Google API cost.
+    const country = components.find((c) => c.types.includes("country"))?.shortText ?? null;
 
     return {
       googlePlaceId: suggestion.placeId,
@@ -98,6 +102,7 @@ export class ShopSearchSession {
       formattedAddress: place.formattedAddress ?? null,
       city,
       state,
+      country,
       latitude: place.location?.lat() ?? null,
       longitude: place.location?.lng() ?? null,
     };

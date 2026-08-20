@@ -9,6 +9,17 @@ import { CoffeeMap, type MapShop } from "@/components/passport/coffee-map";
 import { FavoritesSection, type FavoriteSummary } from "@/components/passport/favorites-section";
 import { PassportHistory } from "@/components/passport/passport-history";
 import { PassportEmptyState } from "@/components/passport/passport-empty-state";
+import { UpNext } from "@/components/passport/up-next";
+import { Stamps } from "@/components/passport/stamps";
+import { PlacesExplored } from "@/components/passport/places-explored";
+import { evaluatePassportAchievements, getEarnedAchievements } from "@/lib/passport/actions";
+import {
+  ACHIEVEMENT_DEFINITIONS,
+  computeAchievementProgress,
+  computePlacesExplored,
+  selectUpNext,
+  toStampDisplayItems,
+} from "@/lib/passport/achievements";
 import type { LogCardData } from "@/components/logs/log-card";
 
 export const metadata: Metadata = {
@@ -108,11 +119,6 @@ export default async function PassportPage() {
   const coffeesLogged = logs.filter((l) => l.beverage_category === "coffee").length;
   const teasLogged = logs.filter((l) => l.beverage_category === "tea").length;
   const cafesExplored = new Set(logs.map((l) => l.shop_id)).size;
-  const uniqueDrinks = new Set(logs.map((l) => l.drink_id)).size;
-  const avgDrinkRating =
-    logs.length > 0
-      ? Math.round((logs.reduce((sum, l) => sum + l.drink_rating, 0) / logs.length) * 10) / 10
-      : 0;
 
   // FAVORITES: most-logged wins, tie-broken by average rating, then
   // alphabetically, so the result is always deterministic. Logs are
@@ -244,6 +250,82 @@ export default async function PassportPage() {
 
   const hasLogs = logs.length > 0;
 
+  // ACHIEVEMENTS: evaluate_passport_achievements() independently
+  // re-derives qualification from drink_logs itself server-side, this
+  // call never sends an achievement key, there's nothing here for a
+  // client to manipulate. Runs on every Passport visit, idempotent via
+  // the unique constraint, so a normal repeat visit with nothing newly
+  // earned is a harmless no-op.
+  if (hasLogs) {
+    await evaluatePassportAchievements();
+  }
+  const earnedAchievements = await getEarnedAchievements();
+
+  const teaLogsCount = logs.filter((l) => l.beverage_category === "tea").length;
+  const uniqueCitiesCount = new Set(
+    logs
+      .filter((l) => l.shop?.city && l.shop?.state)
+      .map((l) => `${l.shop!.city!.toLowerCase().trim()}|${l.shop!.state!.toLowerCase().trim()}`)
+  ).size;
+  const achievementProgress = computeAchievementProgress(
+    {
+      totalLogs: logs.length,
+      coffeeLogs: coffeesLogged,
+      uniqueShops: cafesExplored,
+      uniqueCities: uniqueCitiesCount,
+      teaLogs: teaLogsCount,
+    },
+    earnedAchievements
+  );
+  const upNextGoals = selectUpNext(achievementProgress);
+  // UpNext is a server component (no "use client"), it can keep using
+  // the full AchievementProgress objects directly, no serialization
+  // boundary is crossed there. Stamps is a Client Component (for the
+  // flip interaction), so it gets the plain, function-free display
+  // shape instead.
+  const stampItems = toStampDisplayItems(achievementProgress);
+
+  const placesExplored = computePlacesExplored(
+    logs.map((l) => ({ shopId: l.shop_id, city: l.shop?.city ?? null, state: l.shop?.state ?? null }))
+  );
+
+  // EXPLORING SINCE: the earliest logged_at across the user's history,
+  // this is what lets a backdated log move the date earlier, falling
+  // back to account creation only if there's no history at all yet.
+  const earliestLoggedAt = hasLogs
+    ? logs.reduce((earliest, l) => (l.logged_at < earliest ? l.logged_at : earliest), logs[0].logged_at)
+    : null;
+
+  // Map-specific city count, deliberately separate from
+  // uniqueCitiesCount above: this describes exactly what's rendered on
+  // the map (only shops with real coordinates), not the broader
+  // exploration count used by Places Explored and the achievement
+  // system, which includes every logged shop with a city regardless of
+  // whether it's been geocoded.
+  const mapCitiesCount = new Set(
+    mapShops
+      .filter((s) => s.city && s.state)
+      .map((s) => `${s.city!.toLowerCase().trim()}|${s.state!.toLowerCase().trim()}`)
+  ).size;
+
+  // LATEST STAMP: the most recently earned achievement, if any, for
+  // the hero's bottom element. Never fabricated, simply omitted when
+  // earnedAchievements is empty.
+  const latestStamp = (() => {
+    let latestKey: string | null = null;
+    let latestDate: string | null = null;
+    earnedAchievements.forEach((earnedAt, key) => {
+      if (!latestDate || earnedAt > latestDate) {
+        latestDate = earnedAt;
+        latestKey = key;
+      }
+    });
+    if (!latestKey || !latestDate) return null;
+    const definition = ACHIEVEMENT_DEFINITIONS.find((d) => d.key === latestKey);
+    if (!definition) return null;
+    return { name: definition.name, earnedAt: latestDate };
+  })();
+
   return (
     <div className="min-h-screen bg-crema pb-24 sm:pb-10">
       <AuthenticatedHeader active="passport" />
@@ -253,20 +335,41 @@ export default async function PassportPage() {
           profile={profile}
           stats={
             hasLogs
-              ? { coffeesLogged, teasLogged, cafesExplored, uniqueDrinks, avgDrinkRating }
+              ? {
+                  drinksLogged: logs.length,
+                  teasLogged,
+                  cafesExplored,
+                  citiesExplored: uniqueCitiesCount,
+                  stampsEarned: earnedAchievements.size,
+                }
               : null
           }
+          exploringSinceDate={earliestLoggedAt}
+          latestStamp={latestStamp}
         />
 
         {hasLogs ? (
           <>
             <section>
               <div className="mb-4">
-                <h2 className="font-heading text-xl font-semibold text-espresso">Your Coffee Map</h2>
-                <p className="text-sm text-charcoal/50">Every café you&apos;ve explored, together in one place</p>
+                <h2 className="font-heading text-2xl font-semibold text-espresso sm:text-3xl">
+                  Your Coffee Map
+                </h2>
+                {mapShops.length > 0 && (
+                  <p className="mt-1 text-sm text-charcoal/60">
+                    {mapShops.length} {mapShops.length === 1 ? "café" : "cafés"} across {mapCitiesCount}{" "}
+                    {mapCitiesCount === 1 ? "city" : "cities"}
+                  </p>
+                )}
               </div>
               <CoffeeMap shops={mapShops} />
             </section>
+
+            <PlacesExplored places={placesExplored} />
+
+            <Stamps items={stampItems} />
+
+            <UpNext goals={upNextGoals} />
 
             <FavoritesSection favoriteDrink={favoriteDrink} favoriteShop={favoriteShop} hotIced={hotIced} />
 

@@ -15,6 +15,7 @@ export interface FindOrCreateShopInput {
   address: string | null;
   city: string | null;
   state: string | null;
+  country: string | null;
   latitude: number | null;
   longitude: number | null;
 }
@@ -40,6 +41,7 @@ function validateShopInput(input: FindOrCreateShopInput): string | null {
   }
   if (input.city && input.city.length > MAX_LOCATION_LENGTH) return "That city name is too long.";
   if (input.state && input.state.length > MAX_LOCATION_LENGTH) return "That state is too long.";
+  if (input.country && input.country.length > MAX_LOCATION_LENGTH) return "That country is too long.";
 
   if (input.latitude !== null && (input.latitude < -90 || input.latitude > 90)) {
     return "That location looks invalid. Please try again.";
@@ -81,6 +83,7 @@ export async function findOrCreateShop(input: FindOrCreateShopInput): Promise<Fi
   const address = input.address?.trim() || null;
   const city = input.city?.trim() || null;
   const state = input.state?.trim() || null;
+  const country = input.country?.trim() || null;
 
   const { data: existing } = await supabase
     .from("shops")
@@ -100,6 +103,7 @@ export async function findOrCreateShop(input: FindOrCreateShopInput): Promise<Fi
       address,
       city,
       state,
+      country,
       latitude: input.latitude,
       longitude: input.longitude,
     })
