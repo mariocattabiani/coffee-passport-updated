@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { Search, MapPin, Check, Pencil, Loader2, AlertCircle } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
-import { findOrCreateShop } from "@/lib/shops/actions";
-import { ShopSearchSession, type ShopSuggestion } from "@/lib/google-maps/autocomplete";
+import { findShopByGooglePlaceId } from "@/lib/shops/actions";
+import { AddExternalCafeDialog } from "@/components/explore/add-external-cafe-dialog";
+import { ShopSearchSession, type ShopSuggestion, type SelectedShopPlace } from "@/lib/google-maps/autocomplete";
 import type { Shop } from "@/lib/supabase/types";
 
 interface GoogleShopPickerProps {
@@ -23,6 +24,7 @@ export function GoogleShopPicker({ selectedShop, onSelect, onChange }: GoogleSho
   const [searching, setSearching] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingPlace, setPendingPlace] = useState<SelectedShopPlace | null>(null);
 
   const sessionRef = useRef<ShopSearchSession | null>(null);
   const requestIdRef = useRef(0);
@@ -90,24 +92,18 @@ export function GoogleShopPicker({ selectedShop, onSelect, onChange }: GoogleSho
 
     try {
       const place = await getSession().selectPlace(suggestion);
-      const result = await findOrCreateShop({
-        googlePlaceId: place.googlePlaceId,
-        name: place.name,
-        address: place.formattedAddress,
-        city: place.city,
-        state: place.state,
-        country: place.country,
-        latitude: place.latitude,
-        longitude: place.longitude,
-      });
 
-      if (result.error || !result.shop) {
-        setError(result.error ?? "Couldn't save that café. Please try again.");
-        setSelecting(false);
+      // Never create anything on selection alone. If Coffee Passport
+      // already has this café, use it directly, no dialog, no extra
+      // Google request either, this is a plain database lookup.
+      const existing = await findShopByGooglePlaceId(place.googlePlaceId);
+      if (existing) {
+        onSelect(existing);
         return;
       }
 
-      onSelect(result.shop);
+      setSelecting(false);
+      setPendingPlace(place);
     } catch {
       setError("Couldn't look up that café. Please try again.");
       setSelecting(false);
@@ -115,6 +111,11 @@ export function GoogleShopPicker({ selectedShop, onSelect, onChange }: GoogleSho
       // A fresh session starts the next time this picker is used.
       sessionRef.current = null;
     }
+  }
+
+  function handleCafeCreated(shop: Shop) {
+    setPendingPlace(null);
+    onSelect(shop);
   }
 
   function handleChange() {
@@ -156,55 +157,69 @@ export function GoogleShopPicker({ selectedShop, onSelect, onChange }: GoogleSho
   }
 
   return (
-    <div>
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-charcoal/30" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search cafés..."
-          className="pl-10 pr-10"
-          aria-label="Search cafés"
-          disabled={selecting}
-        />
-        {searching && (
-          <Loader2
-            className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-charcoal/30"
-            aria-hidden="true"
-          />
-        )}
-      </div>
-
-      {error && (
-        <div className="mt-2 flex items-start gap-2 rounded-lg bg-error/10 p-3 text-sm text-error">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>{error}</p>
-        </div>
-      )}
-
-      <div className="mt-2 max-h-64 space-y-1 overflow-y-auto">
-        {suggestions.map((s) => (
-          <button
-            key={s.placeId}
-            type="button"
-            onClick={() => handleSelectSuggestion(s)}
+    <>
+      <div>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-charcoal/30" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search cafés..."
+            className="pl-10 pr-10"
+            aria-label="Search cafés"
             disabled={selecting}
-            className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-white disabled:opacity-50"
-          >
-            <div>
-              <p className="text-sm font-medium text-charcoal">{s.mainText}</p>
-              {s.secondaryText && <p className="text-xs text-charcoal/50">{s.secondaryText}</p>}
-            </div>
-          </button>
-        ))}
+          />
+          {searching && (
+            <Loader2
+              className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-charcoal/30"
+              aria-hidden="true"
+            />
+          )}
+        </div>
 
-        {!searching && query.trim().length >= MIN_QUERY_LENGTH && suggestions.length === 0 && !error && (
-          <p className="px-3 py-6 text-center text-sm text-charcoal/40">No cafés found for &quot;{query}&quot;.</p>
+        {error && (
+          <div className="mt-2 flex items-start gap-2 rounded-lg bg-error/10 p-3 text-sm text-error">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>{error}</p>
+          </div>
         )}
-        {query.trim().length > 0 && query.trim().length < MIN_QUERY_LENGTH && (
-          <p className="px-3 py-4 text-center text-xs text-charcoal/30">Keep typing to search...</p>
-        )}
+
+        <div className="mt-2 max-h-64 space-y-1 overflow-y-auto">
+          {suggestions.map((s) => (
+            <button
+              key={s.placeId}
+              type="button"
+              onClick={() => handleSelectSuggestion(s)}
+              disabled={selecting}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-white disabled:opacity-50"
+            >
+              <div>
+                <p className="text-sm font-medium text-charcoal">{s.mainText}</p>
+                {s.secondaryText && <p className="text-xs text-charcoal/50">{s.secondaryText}</p>}
+              </div>
+            </button>
+          ))}
+
+          {!searching && query.trim().length >= MIN_QUERY_LENGTH && suggestions.length === 0 && !error && (
+            <p className="px-3 py-6 text-center text-sm text-charcoal/40">No cafés found for &quot;{query}&quot;.</p>
+          )}
+          {query.trim().length > 0 && query.trim().length < MIN_QUERY_LENGTH && (
+            <p className="px-3 py-4 text-center text-xs text-charcoal/30">Keep typing to search...</p>
+          )}
+        </div>
       </div>
-    </div>
+
+      {pendingPlace && (
+        <AddExternalCafeDialog
+          place={{
+            googlePlaceId: pendingPlace.googlePlaceId,
+            googleName: pendingPlace.name,
+            googleSecondaryText: pendingPlace.formattedAddress,
+          }}
+          onCreated={handleCafeCreated}
+          onCancel={() => setPendingPlace(null)}
+        />
+      )}
+    </>
   );
 }

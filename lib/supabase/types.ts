@@ -37,6 +37,8 @@ export interface Shop {
   longitude: number | null;
   google_place_id: string | null;
   is_chain: boolean;
+  name_source: "user" | "manual" | "seed" | "unknown";
+  location_source: "user" | "manual" | "seed" | "unknown";
   created_at: string;
   updated_at: string;
 }

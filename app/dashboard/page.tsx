@@ -11,6 +11,7 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { ComingSoonStrip } from "@/components/dashboard/coming-soon-strip";
 import { RecentActivity } from "@/components/logs/recent-activity";
 import { ContinueYourPassport } from "@/components/dashboard/continue-your-passport";
+import { ExploreCta } from "@/components/dashboard/explore-cta";
 import { evaluatePassportAchievements, getEarnedAchievements } from "@/lib/passport/actions";
 import { computeAchievementProgress, selectUpNext } from "@/lib/passport/achievements";
 import type { LogCardData } from "@/components/logs/log-card";
@@ -156,7 +157,10 @@ export default async function DashboardPage() {
       <main className="container max-w-5xl space-y-8 py-6 sm:space-y-10 sm:py-10">
         <DashboardHero firstName={firstName} />
 
-        <ContinueYourPassport goal={closestGoal} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ExploreCta />
+          <ContinueYourPassport goal={closestGoal} />
+        </div>
 
         {/* STATS */}
         <div className="grid grid-cols-3 gap-2.5 sm:gap-4">

@@ -6,65 +6,79 @@ import type { Shop } from "@/lib/supabase/types";
 const UNIQUE_VIOLATION = "23505";
 const MAX_PLACE_ID_LENGTH = 255;
 const MAX_NAME_LENGTH = 120;
-const MAX_ADDRESS_LENGTH = 255;
-const MAX_LOCATION_LENGTH = 80;
+const MAX_CITY_LENGTH = 80;
 
-export interface FindOrCreateShopInput {
-  googlePlaceId: string;
-  name: string;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  country: string | null;
-  latitude: number | null;
-  longitude: number | null;
+/**
+ * Pure lookup, no side effects, no creation. Used first, always,
+ * before ever considering creating a shop: if a Google-discovered café
+ * is already in Coffee Passport, we open the existing record, we never
+ * create a second one.
+ */
+export async function findShopByGooglePlaceId(googlePlaceId: string): Promise<Shop | null> {
+  const placeId = googlePlaceId.trim();
+  if (!placeId) return null;
+
+  const supabase = await createClient();
+  const { data } = await supabase.from("shops").select("*").eq("google_place_id", placeId).maybeSingle<Shop>();
+
+  return data ?? null;
 }
 
-export interface FindOrCreateShopResult {
+export interface CreateCoffeePassportShopInput {
+  googlePlaceId: string;
+  /** Coffee Passport's own permanent name for this café, entered by a
+   *  user through our own form. This is never Google's displayName
+   *  copied in silently, the caller is responsible for that boundary,
+   *  see components/explore/add-external-cafe-dialog.tsx. */
+  name: string;
+  city?: string | null;
+  nameSource: "user" | "manual" | "seed";
+  locationSource?: "user" | "manual" | "seed";
+}
+
+export interface CreateCoffeePassportShopResult {
   shop?: Shop;
   error?: string;
 }
 
-function validateShopInput(input: FindOrCreateShopInput): string | null {
+function validateCreateInput(input: CreateCoffeePassportShopInput): string | null {
   const placeId = input.googlePlaceId.trim();
-  if (!placeId) return "Missing place information. Please try selecting the café again.";
-  if (placeId.length > MAX_PLACE_ID_LENGTH) {
-    return "Something went wrong with that selection. Please try again.";
-  }
+  if (!placeId) return "Missing place information. Please try again.";
+  if (placeId.length > MAX_PLACE_ID_LENGTH) return "Something went wrong with that selection. Please try again.";
 
   const name = input.name.trim();
-  if (!name) return "That café is missing a name. Please try a different result.";
-  if (name.length > MAX_NAME_LENGTH) return "That café's name is too long.";
+  if (!name) return "Please enter a café name.";
+  if (name.length > MAX_NAME_LENGTH) return "That name is too long.";
 
-  if (input.address && input.address.length > MAX_ADDRESS_LENGTH) {
-    return "That address is too long.";
-  }
-  if (input.city && input.city.length > MAX_LOCATION_LENGTH) return "That city name is too long.";
-  if (input.state && input.state.length > MAX_LOCATION_LENGTH) return "That state is too long.";
-  if (input.country && input.country.length > MAX_LOCATION_LENGTH) return "That country is too long.";
-
-  if (input.latitude !== null && (input.latitude < -90 || input.latitude > 90)) {
-    return "That location looks invalid. Please try again.";
-  }
-  if (input.longitude !== null && (input.longitude < -180 || input.longitude > 180)) {
-    return "That location looks invalid. Please try again.";
-  }
+  if (input.city && input.city.length > MAX_CITY_LENGTH) return "That city name is too long.";
 
   return null;
 }
 
 /**
- * Finds the shared shop row for a Google place, or creates one if it's
- * never been logged before. Shops are shared, canonical records, never
- * duplicated per user: two people selecting the same café both end up
- * pointing at the same row.
+ * Creates a new, durable Coffee Passport shop record from a
+ * Google-discovered café (Autocomplete or Nearby Search), storing only
+ * what's genuinely Coffee Passport's own: the Google place ID (the one
+ * field with an explicit, indefinite storage right), a Coffee
+ * Passport-entered name, and an optional Coffee Passport-entered city.
  *
- * Trust note: the browser-submitted place data here (name, address,
- * coordinates) is accepted as pragmatic early-stage input, not
- * independently re-verified against Google server-side. See
- * supabase/shops_google_places.sql for the full reasoning.
+ * Deliberately does NOT accept or persist Google's formattedAddress,
+ * addressComponents, state, country, or coordinates. A newly created
+ * shop may have null latitude/longitude, that's expected and fine,
+ * shops.latitude/longitude are already nullable with constraints that
+ * explicitly permit null. It simply won't appear in coordinate-based
+ * map surfaces until Coffee Passport has its own location data for it,
+ * every other surface (ratings, Top Drinks, logs, Passport history,
+ * public activity, the café page itself) works the same regardless.
+ *
+ * Race-safe the same way shop creation always has been in this project: attempts
+ * the insert, and on a unique-constraint hit (someone else created the
+ * same place a moment earlier), returns whichever row actually won,
+ * never a raw duplicate-key failure surfaced to the user.
  */
-export async function findOrCreateShop(input: FindOrCreateShopInput): Promise<FindOrCreateShopResult> {
+export async function createCoffeePassportShop(
+  input: CreateCoffeePassportShopInput
+): Promise<CreateCoffeePassportShopResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -73,39 +87,23 @@ export async function findOrCreateShop(input: FindOrCreateShopInput): Promise<Fi
     return { error: "Please log in and try again." };
   }
 
-  const validationError = validateShopInput(input);
+  const validationError = validateCreateInput(input);
   if (validationError) {
     return { error: validationError };
   }
 
   const googlePlaceId = input.googlePlaceId.trim();
   const name = input.name.trim();
-  const address = input.address?.trim() || null;
   const city = input.city?.trim() || null;
-  const state = input.state?.trim() || null;
-  const country = input.country?.trim() || null;
-
-  const { data: existing } = await supabase
-    .from("shops")
-    .select("*")
-    .eq("google_place_id", googlePlaceId)
-    .maybeSingle<Shop>();
-
-  if (existing) {
-    return { shop: existing };
-  }
 
   const { data: inserted, error } = await supabase
     .from("shops")
     .insert({
       google_place_id: googlePlaceId,
       name,
-      address,
       city,
-      state,
-      country,
-      latitude: input.latitude,
-      longitude: input.longitude,
+      name_source: input.nameSource,
+      location_source: city ? input.locationSource ?? "user" : "unknown",
     })
     .select()
     .single<Shop>();
@@ -115,14 +113,7 @@ export async function findOrCreateShop(input: FindOrCreateShopInput): Promise<Fi
   }
 
   if (error?.code === UNIQUE_VIOLATION) {
-    // Someone else added this exact place a moment ago, the database is
-    // the source of truth here, not an error, hand back whichever row
-    // actually won the race.
-    const { data: winner } = await supabase
-      .from("shops")
-      .select("*")
-      .eq("google_place_id", googlePlaceId)
-      .maybeSingle<Shop>();
+    const winner = await findShopByGooglePlaceId(googlePlaceId);
     if (winner) {
       return { shop: winner };
     }

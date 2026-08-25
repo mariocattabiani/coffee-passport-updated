@@ -10,6 +10,7 @@ const PROTECTED_PATHS = [
   "/discover",
   "/friends",
   "/users",
+  "/explore",
 ];
 const AUTH_PATHS = ["/login", "/signup"];
 
@@ -102,7 +103,8 @@ export async function middleware(request: NextRequest) {
         matchesPath(pathname, "/shops") ||
         matchesPath(pathname, "/discover") ||
         matchesPath(pathname, "/friends") ||
-        matchesPath(pathname, "/users")) &&
+        matchesPath(pathname, "/users") ||
+        matchesPath(pathname, "/explore")) &&
       !onboarded
     ) {
       const url = request.nextUrl.clone();
@@ -136,6 +138,7 @@ export const config = {
     "/discover/:path*",
     "/friends/:path*",
     "/users/:path*",
+    "/explore/:path*",
     "/login",
     "/signup",
   ],

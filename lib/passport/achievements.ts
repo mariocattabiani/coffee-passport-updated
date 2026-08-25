@@ -198,6 +198,36 @@ export function toStampDisplayItems(progressList: AchievementProgress[]): StampD
   }));
 }
 
+/**
+ * Client-safe display shape for a single Up Next goal, only primitives
+ * and strings, no getProgress, no function of any kind. Needed because
+ * PassportProgressModule, when used from Explore, is imported and
+ * rendered from inside a Client Component's module graph
+ * (explore-client.tsx has "use client"), so it runs on the client in
+ * that context even though the component file itself has no directive,
+ * and AchievementProgress (with its function-bearing definition) can't
+ * cross that boundary, the exact same class of bug already fixed once
+ * on Passport's Stamps section.
+ */
+export interface UpNextGoalDisplay {
+  name: string;
+  progress: number;
+  threshold: number;
+  percent: number;
+  progressUnitPlural: string;
+}
+
+export function toUpNextGoalDisplay(goal: AchievementProgress | null): UpNextGoalDisplay | null {
+  if (!goal) return null;
+  return {
+    name: goal.definition.name,
+    progress: goal.progress,
+    threshold: goal.definition.threshold,
+    percent: goal.percent,
+    progressUnitPlural: goal.definition.progressUnitPlural,
+  };
+}
+
 const UP_NEXT_MAX = 3;
 const UP_NEXT_MIN_PERCENT_FLOOR = 15;
 const UP_NEXT_MAX_PER_CATEGORY = 2;

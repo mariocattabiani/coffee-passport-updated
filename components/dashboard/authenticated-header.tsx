@@ -9,7 +9,7 @@ interface AuthenticatedHeaderProps {
   /** Omit on screens that aren't Dashboard, Discover, Friends, or
    *  Passport themselves (a café or user profile page, for instance),
    *  no nav item gets highlighted. */
-  active?: "dashboard" | "discover" | "friends" | "passport";
+  active?: "dashboard" | "explore" | "discover" | "friends" | "passport";
 }
 
 /**
@@ -39,6 +39,11 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
             <Button asChild variant={active === "dashboard" ? "secondary" : "ghost"} size="sm">
               <Link href="/dashboard" aria-current={active === "dashboard" ? "page" : undefined}>
                 Dashboard
+              </Link>
+            </Button>
+            <Button asChild variant={active === "explore" ? "secondary" : "ghost"} size="sm">
+              <Link href="/explore" aria-current={active === "explore" ? "page" : undefined}>
+                Explore
               </Link>
             </Button>
             <Button asChild variant={active === "discover" ? "secondary" : "ghost"} size="sm">
