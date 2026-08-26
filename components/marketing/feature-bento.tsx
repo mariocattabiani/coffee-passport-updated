@@ -52,12 +52,12 @@ export function FeatureBento() {
           </div>
           <h3 className="font-heading text-xl font-semibold">Discover</h3>
           <p className="mt-2 max-w-xs text-sm text-crema/70">
-            See what friends ordered, what's trending nearby, and what's
+            See what friends ordered, what&apos;s trending nearby, and what&apos;s
             actually worth trying before you get in line.
           </p>
         </div>
         <div className="mt-8 rounded-lg bg-crema/10 p-3">
-          <p className="text-[11px] uppercase tracking-wide text-crema/50">Friends' pick this week</p>
+          <p className="text-[11px] uppercase tracking-wide text-crema/50">Friends&apos; pick this week</p>
           <p className="mt-1 text-sm font-medium">Honey Lavender Latte</p>
           <div className="mt-1.5">
             <StarTrail />
@@ -85,7 +85,7 @@ export function FeatureBento() {
           <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-espresso/10">
             <MapPin className="h-5 w-5 text-espresso" />
           </div>
-          <h3 className="font-heading text-lg font-semibold text-espresso">Find what's near you</h3>
+          <h3 className="font-heading text-lg font-semibold text-espresso">Find what&apos;s near you</h3>
           <p className="mt-2 text-sm text-charcoal/60">
             An interactive map, ranked by the drinks people recommend.
           </p>
@@ -104,7 +104,7 @@ export function FeatureBento() {
             </div>
             <h3 className="font-heading text-lg font-semibold text-espresso">Keep a wishlist</h3>
             <p className="mt-2 max-w-xs text-sm text-charcoal/60">
-              Save a drink or a shop for later. It stays put until you're ready for it.
+              Save a drink or a shop for later. It stays put until you&apos;re ready for it.
             </p>
           </div>
           <div className="hidden shrink-0 flex-col gap-2 sm:flex">

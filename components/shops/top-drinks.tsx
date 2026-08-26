@@ -39,7 +39,7 @@ export function TopDrinks({ drinks, shopId }: TopDrinksProps) {
             Be the first to put this café on the Passport.
           </p>
           <p className="mt-1 max-w-xs text-sm text-charcoal/60">
-            Log a drink here and it will show up as this café's first recommendation.
+            Log a drink here and it will show up as this café&apos;s first recommendation.
           </p>
           <Button asChild className="mt-6">
             <Link href={`/log?shopId=${shopId}`}>Log a drink</Link>

@@ -93,7 +93,7 @@ export function StepShops({ data, update, onNext, onBack }: StepShopsProps) {
           );
         })}
         {filtered.length === 0 && (
-          <p className="py-6 text-center text-sm text-charcoal/40">No shops match "{query}".</p>
+          <p className="py-6 text-center text-sm text-charcoal/40">No shops match &quot;{query}&quot;.</p>
         )}
       </div>
 

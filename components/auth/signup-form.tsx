@@ -65,7 +65,7 @@ export function SignupForm() {
       </Button>
 
       <p className="mt-6 text-center text-xs text-charcoal/40">
-        By creating an account you agree to Coffee Passport's Terms and Privacy Policy.
+        By creating an account you agree to Coffee Passport&apos;s Terms and Privacy Policy.
       </p>
     </>
   );

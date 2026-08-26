@@ -25,7 +25,7 @@ export function PassportScreen() {
       <div className="flex items-center gap-3">
         <div className="h-14 w-14 rounded-full bg-latte/50 ring-2 ring-white" />
         <div>
-          <p className="font-heading text-base font-semibold text-espresso">Priya's Passport</p>
+          <p className="font-heading text-base font-semibold text-espresso">Priya&apos;s Passport</p>
           <p className="flex items-center gap-1 text-xs text-charcoal/50">
             <MapPin className="h-3 w-3" /> Austin, TX
           </p>

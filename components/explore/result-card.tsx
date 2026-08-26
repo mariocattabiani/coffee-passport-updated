@@ -24,7 +24,7 @@ export function ResultCard({ item, distanceMiles, selected }: ResultCardProps) {
   return (
     <Link
       href={`/shops/${item.shopId}`}
-      className={`flex gap-3 rounded-xl border p-4 shadow-soft transition-shadow hover:shadow-card ${
+      className={`flex w-full min-w-0 max-w-full gap-3 overflow-hidden rounded-xl border p-4 shadow-soft transition-shadow hover:shadow-card ${
         selected ? "border-espresso bg-crema/50 shadow-card" : "border-border bg-white"
       }`}
     >

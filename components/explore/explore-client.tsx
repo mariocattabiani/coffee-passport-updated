@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Locate, List as ListIcon, Map as MapIcon, Sparkles } from "lucide-react";
+import { List as ListIcon, Map as MapIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { ExploreSearch } from "@/components/explore/explore-search";
 import { FilterBar } from "@/components/explore/filter-bar";
+import { FiltersPopover } from "@/components/explore/filters-popover";
+import { MobileFilterRow } from "@/components/explore/mobile-filter-row";
 import { SortControl } from "@/components/explore/sort-control";
+import { FindCoffeeNearMe } from "@/components/explore/find-coffee-near-me";
 import { PassportProgressModule } from "@/components/explore/passport-progress-module";
 import { ResultCard } from "@/components/explore/result-card";
 import { ExternalResultCard } from "@/components/explore/external-result-card";
@@ -15,6 +17,7 @@ import { AddExternalCafeDialog } from "@/components/explore/add-external-cafe-di
 import { SearchThisAreaButton } from "@/components/explore/search-this-area-button";
 import { GoogleAttribution } from "@/components/explore/google-attribution";
 import { ExploreMap } from "@/components/explore/explore-map";
+import { MobileMapView } from "@/components/explore/mobile-map-view";
 import { ExploreEmptyState } from "@/components/explore/explore-empty-state";
 import { useGeolocation } from "@/lib/geolocation/use-geolocation";
 import { haversineMiles, boundsAroundPoint } from "@/lib/explore/geo";
@@ -34,7 +37,13 @@ interface ExploreClientProps {
 const DEFAULT_FILTERS: ExploreFilters = { shopType: "all", quick: [], maxDistanceMiles: null };
 // Fixed for V1, not zoom-adaptive, kept predictable and cost-safe.
 const SEARCH_RADIUS_METERS = 5000;
-const SPARSE_RESULT_THRESHOLD = 3;
+// How far the map has to move, from the center of the last loaded
+// region, before the contextual Search This Area button appears.
+// Tunable, deliberately not a tiny distance, so trivial accidental
+// pans don't flash the button in and out.
+const SEARCH_THIS_AREA_THRESHOLD_MILES = 0.75;
+const PASSPORT_MODULE_MOBILE_INDEX = 2;
+const MOBILE_LOCAL_DISCOVERY_ZOOM = 15;
 
 function buildSearchSignature(lat: number, lng: number, radiusMeters: number): string {
   return `${lat.toFixed(3)},${lng.toFixed(3)},${radiusMeters}`;
@@ -52,17 +61,12 @@ function isNewToMe(entry: ExploreResultItem): boolean {
 
 /**
  * selectedShopId/selectedExternalPlaceId are the single sources of
- * truth for list/map synchronization, a card click and a marker click
- * both only ever call their one corresponding setter. Filtered and
- * sorted results are derived with useMemo, never their own separate
- * state, so there is nothing to keep in sync or forget to update after
- * a filter or sort change.
+ * truth for list/map synchronization. Filtered and sorted results are
+ * derived with useMemo, never their own separate state.
  *
  * External results (Nearby Search) exist only in this component's own
- * state, never persisted, never surviving a reload, and only ever
- * populated by an explicit "Search this area" click, there is no path
- * anywhere in this file that calls searchNearbyExternalCafes
- * automatically.
+ * state, never persisted, only ever populated by Find Coffee Near Me
+ * or an explicit Search This Area click, never automatically.
  */
 export function ExploreClient({ initialResults, regionLabel, upNextGoal }: ExploreClientProps) {
   const [results, setResults] = useState<DiscoveryResult[]>(initialResults);
@@ -76,68 +80,83 @@ export function ExploreClient({ initialResults, regionLabel, upNextGoal }: Explo
   const location = useGeolocation();
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const sortTouchedRef = useRef(false);
+  const pendingFindNearMeRef = useRef(false);
+  const router = useRouter();
 
-  // Search This Area state, entirely separate from the stored-results
-  // pipeline above.
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [mobileMapViewport, setMobileMapViewport] = useState<{
+    center: { lat: number; lng: number };
+    zoom: number;
+  } | null>(null);
+  // The center of whichever region's results are currently displayed,
+  // distinct from mapCenter (the live pan position), used only to
+  // decide whether Search This Area should appear.
+  const [lastLoadedCenter, setLastLoadedCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [externalResults, setExternalResults] = useState<ExternalCafeResult[]>([]);
   const [searchingArea, setSearchingArea] = useState(false);
   const [searchAreaError, setSearchAreaError] = useState(false);
   const [selectedExternalPlaceId, setSelectedExternalPlaceId] = useState<string | null>(null);
   const [openingExternalId, setOpeningExternalId] = useState<string | null>(null);
   const [addCafeContext, setAddCafeContext] = useState<ExternalCafeResult | null>(null);
+  const [recenterToken, setRecenterToken] = useState(0);
   const externalCardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  // Rounded center + radius of the last successful search, a second
-  // click without a meaningful move is a no-op, not a second request.
   const lastSearchSignatureRef = useRef<string | null>(null);
-  const router = useRouter();
 
   const hasLocation = location.status === "granted" && location.latitude !== null && location.longitude !== null;
 
-  async function handleUseLocation() {
+  async function runFindNearMeFlow(lat: number, lng: number) {
+    setRegionLoading(true);
+    setLocationError(false);
+    setSearchAreaError(false);
+    setMapCenter(null);
+    setMobileMapViewport(null);
+    sortTouchedRef.current = false;
+
+    try {
+      const [storedResults, nearbyOutcome] = await Promise.all([
+        getDiscoveryResults(boundsAroundPoint(lat, lng)),
+        searchNearbyExternalCafes(lat, lng, SEARCH_RADIUS_METERS),
+      ]);
+
+      setResults(storedResults);
+      setCurrentRegionLabel(null);
+      setSort("nearby");
+      setLastLoadedCenter({ lat, lng });
+      lastSearchSignatureRef.current = buildSearchSignature(lat, lng, SEARCH_RADIUS_METERS);
+
+      if (nearbyOutcome.success) {
+        setExternalResults(nearbyOutcome.results);
+      } else {
+        setSearchAreaError(true);
+      }
+    } catch {
+      setLocationError(true);
+    } finally {
+      setRegionLoading(false);
+    }
+  }
+
+  function handleFindCoffeeNearMe() {
+    if (hasLocation) {
+      // Already granted, this tap is a deliberate refresh/recenter
+      // request, redo the whole flow with the current coordinates.
+      runFindNearMeFlow(location.latitude!, location.longitude!);
+      return;
+    }
+    pendingFindNearMeRef.current = true;
     location.requestLocation();
   }
 
-  const locationFetchedRef = useRef(false);
-
-  function fetchDiscoveryForLocation(lat: number, lng: number) {
-    let cancelled = false;
-    setRegionLoading(true);
-    setLocationError(false);
-
-    getDiscoveryResults(boundsAroundPoint(lat, lng))
-      .then((r) => {
-        if (cancelled) return;
-        setResults(r);
-        setCurrentRegionLabel(null);
-        // A fresh location grant takes priority over any stale manual
-        // pan from before it arrived.
-        setMapCenter(null);
-        if (!sortTouchedRef.current) setSort("nearby");
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setLocationError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setRegionLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }
-
   useEffect(() => {
-    if (!hasLocation || locationFetchedRef.current) return;
-    locationFetchedRef.current = true;
-    return fetchDiscoveryForLocation(location.latitude!, location.longitude!);
+    if (!hasLocation || !pendingFindNearMeRef.current) return;
+    pendingFindNearMeRef.current = false;
+    runFindNearMeFlow(location.latitude!, location.longitude!);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasLocation, location.latitude, location.longitude]);
 
   function handleRetryLocation() {
     if (location.latitude === null || location.longitude === null) return;
-    fetchDiscoveryForLocation(location.latitude, location.longitude);
+    runFindNearMeFlow(location.latitude, location.longitude);
   }
 
   function handleSortChange(next: SortOption) {
@@ -149,9 +168,18 @@ export function ExploreClient({ initialResults, regionLabel, upNextGoal }: Explo
     setMapCenter({ lat, lng });
   }
 
+  function handleMobileViewportSettled(lat: number, lng: number, zoom: number) {
+    const center = { lat, lng };
+    setMapCenter(center);
+    setMobileMapViewport({ center, zoom });
+  }
+
+  function handleRecenter() {
+    // Pure camera move, no fetch, no Google request.
+    setRecenterToken((t) => t + 1);
+  }
+
   function getSearchCenter(): { lat: number; lng: number } | null {
-    // The map has been manually moved since the region last loaded,
-    // that takes priority.
     if (mapCenter) return mapCenter;
     if (hasLocation) return { lat: location.latitude!, lng: location.longitude! };
     return null;
@@ -176,14 +204,12 @@ export function ExploreClient({ initialResults, regionLabel, upNextGoal }: Explo
     }
     lastSearchSignatureRef.current = signature;
     setExternalResults(outcome.results);
+    setLastLoadedCenter(center);
   }
 
   async function handleOpenExternal(item: ExternalCafeResult) {
     setOpeningExternalId(item.googlePlaceId);
 
-    // Never create anything on click alone. If Coffee Passport already
-    // has this café, open it directly, no dialog, no second Google
-    // request either, this is a plain database lookup.
     const existing = await findShopByGooglePlaceId(item.googlePlaceId);
     if (existing) {
       router.push(`/shops/${existing.id}`);
@@ -205,6 +231,17 @@ export function ExploreClient({ initialResults, regionLabel, upNextGoal }: Explo
     if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
+  function handleSelectMarker(shopId: string) {
+    setSelectedShopId(shopId);
+    const el = cardRefs.current.get(shopId);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function handleDismissSelection() {
+    setSelectedShopId(null);
+    setSelectedExternalPlaceId(null);
+  }
+
   const combinedItems: ExploreResultItem[] = useMemo(() => {
     const stored: ExploreResultItem[] = results.map((data) => ({ source: "stored" as const, data }));
     const external: ExploreResultItem[] = externalResults.map((data) => ({ source: "external" as const, data }));
@@ -219,9 +256,6 @@ export function ExploreClient({ initialResults, regionLabel, upNextGoal }: Explo
       }
 
       if (entry.source === "external") {
-        // External results only ever pass filters they can honestly
-        // satisfy, we don't fabricate a rating, visited state, friend
-        // count, or chain classification for a café we don't yet know.
         if (filters.shopType !== "all") return false;
         if (filters.quick.includes("visited")) return false;
         if (filters.quick.includes("highly_rated")) return false;
@@ -266,21 +300,8 @@ export function ExploreClient({ initialResults, regionLabel, upNextGoal }: Explo
     return list;
   }, [filteredItems, sort, hasLocation, location.latitude, location.longitude]);
 
-  function handleSelectMarker(shopId: string) {
-    setSelectedShopId(shopId);
-    const el = cardRefs.current.get(shopId);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }
-
-  const filtersActive = filters.shopType !== "all" || filters.quick.length > 0 || filters.maxDistanceMiles !== null;
-
-  // trueEmpty now means nothing at all, not even after a search,
-  // that's the only state that replaces the whole map/list body. A
-  // sparse-but-nonzero region, or a filter reducing the list to zero,
-  // both keep the full layout and the map visible.
   const trueEmpty = results.length === 0 && externalResults.length === 0;
   const filteredEmpty = !trueEmpty && sortedItems.length === 0;
-  const sparse = results.length > 0 && results.length < SPARSE_RESULT_THRESHOLD && externalResults.length === 0;
 
   let listEmptyVariant: "no-friend-activity" | "no-filter-matches" | null = null;
   if (filteredEmpty) {
@@ -289,45 +310,98 @@ export function ExploreClient({ initialResults, regionLabel, upNextGoal }: Explo
 
   const canSearchArea = getSearchCenter() !== null;
 
+  const searchThisAreaVisible =
+    lastLoadedCenter !== null &&
+    mapCenter !== null &&
+    haversineMiles(lastLoadedCenter.lat, lastLoadedCenter.lng, mapCenter.lat, mapCenter.lng) >
+      SEARCH_THIS_AREA_THRESHOLD_MILES;
+
   const selectedItemForDistance =
     results.find((r) => r.shopId === selectedShopId) ??
     externalResults.find((r) => r.googlePlaceId === selectedExternalPlaceId) ??
     null;
   const selectedDistanceMiles =
     selectedItemForDistance && hasLocation
-      ? haversineMiles(location.latitude!, location.longitude!, selectedItemForDistance.latitude, selectedItemForDistance.longitude)
+      ? haversineMiles(
+          location.latitude!,
+          location.longitude!,
+          selectedItemForDistance.latitude,
+          selectedItemForDistance.longitude
+        )
       : null;
 
-  function handleDismissSelection() {
-    setSelectedShopId(null);
-    setSelectedExternalPlaceId(null);
+  const centerHint = lastLoadedCenter ?? (hasLocation ? { lat: location.latitude!, lng: location.longitude! } : null);
+  const currentLocation = hasLocation ? { lat: location.latitude!, lng: location.longitude! } : null;
+  const mobileInitialViewport =
+    mobileMapViewport ??
+    (currentLocation ? { center: currentLocation, zoom: MOBILE_LOCAL_DISCOVERY_ZOOM } : null);
+
+  function renderCard(entry: ExploreResultItem, distance: number | null) {
+    if (entry.source === "stored") {
+      return (
+        <div
+          key={entry.data.shopId}
+          className="min-w-0 max-w-full"
+          ref={(el) => {
+            if (el) cardRefs.current.set(entry.data.shopId, el);
+            else cardRefs.current.delete(entry.data.shopId);
+          }}
+        >
+          <ResultCard item={entry.data} distanceMiles={distance} selected={entry.data.shopId === selectedShopId} />
+        </div>
+      );
+    }
+    return (
+      <div
+        key={entry.data.googlePlaceId}
+        className="min-w-0 max-w-full"
+        ref={(el) => {
+          if (el) externalCardRefs.current.set(entry.data.googlePlaceId, el);
+          else externalCardRefs.current.delete(entry.data.googlePlaceId);
+        }}
+      >
+        <ExternalResultCard
+          item={entry.data}
+          distanceMiles={distance}
+          selected={entry.data.googlePlaceId === selectedExternalPlaceId}
+          opening={openingExternalId === entry.data.googlePlaceId}
+          onOpen={handleOpenExternal}
+        />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <ExploreSearch />
+    <div className="min-w-0 max-w-full space-y-4">
+      {/* Two distinct intents, kept visibly separate: search is "I know
+          the café," Find Coffee Near Me is "show me what's around." */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="min-w-0 sm:flex-1">
+          <ExploreSearch />
+        </div>
+        <FindCoffeeNearMe
+          status={location.status}
+          hasLocation={hasLocation}
+          regionLabel={currentRegionLabel}
+          onFind={handleFindCoffeeNearMe}
+        />
+      </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Mobile: one light filter row. Desktop: the fuller row plus the
+          distance popover. */}
+      <div className="min-w-0 max-w-full lg:hidden">
+        <MobileFilterRow filters={filters} onChange={setFilters} />
+      </div>
+      <div className="hidden items-center justify-between gap-3 lg:flex">
         <FilterBar filters={filters} onChange={setFilters} hasLocation={hasLocation} />
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <SortControl value={sort} onChange={handleSortChange} hasLocation={hasLocation} />
-          {!hasLocation && (
-            <Button variant="outline" size="sm" onClick={handleUseLocation} className="gap-1.5">
-              <Locate className="h-3.5 w-3.5" />
-              {location.status === "pending" ? "Locating..." : "Use my location"}
-            </Button>
-          )}
-          <SearchThisAreaButton onSearch={handleSearchThisArea} searching={searchingArea} disabled={!canSearchArea} />
+          <FiltersPopover filters={filters} onChange={setFilters} hasLocation={hasLocation} />
         </div>
       </div>
 
-      <PassportProgressModule goal={upNextGoal} />
-
       {location.status === "denied" && (
         <p className="text-xs text-charcoal/50">Location isn&apos;t available, you can still search by name.</p>
-      )}
-      {!hasLocation && currentRegionLabel && (
-        <p className="text-xs text-charcoal/40">Showing cafés near {currentRegionLabel}</p>
       )}
       {locationError && (
         <div className="flex items-center gap-3 rounded-lg border border-border bg-white/60 px-3.5 py-2.5 text-xs text-charcoal/60">
@@ -340,19 +414,15 @@ export function ExploreClient({ initialResults, regionLabel, upNextGoal }: Explo
       {searchAreaError && (
         <p className="text-xs text-charcoal/50">Nearby search couldn&apos;t be completed. Please try again.</p>
       )}
-      {sparse && !searchingArea && (
-        <button
-          type="button"
-          onClick={handleSearchThisArea}
-          disabled={!canSearchArea}
-          className="flex items-center gap-1.5 text-xs font-medium text-espresso hover:underline disabled:opacity-50"
-        >
-          <Sparkles className="h-3 w-3" aria-hidden="true" />
-          Want more options? Search nearby cafés
-        </button>
-      )}
 
-      <div className="sm:hidden">
+      {/* Desktop: Passport progress sits here, above the grid, kept
+          slim. Mobile: it's spliced lower, into the list itself, so it
+          never delays the first cafés. */}
+      <div className="hidden lg:block">
+        <PassportProgressModule goal={upNextGoal} />
+      </div>
+
+      <div className="lg:hidden">
         <div className="flex rounded-full border border-border bg-white p-0.5">
           <button
             type="button"
@@ -390,74 +460,108 @@ export function ExploreClient({ initialResults, regionLabel, upNextGoal }: Explo
             We don&apos;t have any Coffee Passport cafés in this area yet.
           </p>
           <div className="mt-6">
-            <SearchThisAreaButton onSearch={handleSearchThisArea} searching={searchingArea} disabled={!canSearchArea} />
+            <FindCoffeeNearMe
+              status={location.status}
+              hasLocation={hasLocation}
+              regionLabel={currentRegionLabel}
+              onFind={handleFindCoffeeNearMe}
+            />
           </div>
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-          <div className={`space-y-3 ${mobileTab === "map" ? "hidden lg:block" : ""}`}>
-            {filteredEmpty ? (
-              <ExploreEmptyState variant={listEmptyVariant!} />
-            ) : (
-              <>
-                {externalResults.length > 0 && (
-                  <div className="pb-1">
-                    <GoogleAttribution />
-                  </div>
-                )}
-                {sortedItems.map(({ entry, distance }) =>
-                  entry.source === "stored" ? (
-                    <div
-                      key={entry.data.shopId}
-                      ref={(el) => {
-                        if (el) cardRefs.current.set(entry.data.shopId, el);
-                        else cardRefs.current.delete(entry.data.shopId);
-                      }}
-                    >
-                      <ResultCard item={entry.data} distanceMiles={distance} selected={entry.data.shopId === selectedShopId} />
-                    </div>
-                  ) : (
-                    <div
-                      key={entry.data.googlePlaceId}
-                      ref={(el) => {
-                        if (el) externalCardRefs.current.set(entry.data.googlePlaceId, el);
-                        else externalCardRefs.current.delete(entry.data.googlePlaceId);
-                      }}
-                    >
-                      <ExternalResultCard
-                        item={entry.data}
-                        distanceMiles={distance}
-                        selected={entry.data.googlePlaceId === selectedExternalPlaceId}
-                        opening={openingExternalId === entry.data.googlePlaceId}
-                        onOpen={handleOpenExternal}
-                      />
-                    </div>
-                  )
-                )}
-              </>
-            )}
-          </div>
-
-          <div className={`lg:sticky lg:top-24 ${mobileTab === "list" ? "hidden lg:block" : ""}`}>
-            {/* The full, unfiltered region here, deliberately decoupled
-                from the filtered list, a restrictive filter should
-                never make the map go blank. */}
-            <ExploreMap
+        <>
+          {/* Mobile Map mode: a genuine full-screen overlay, not an
+              embedded box, tapping a marker there shows a compact
+              preview and never forces a switch back to List. */}
+          {mobileTab === "map" && (
+            <MobileMapView
               items={results}
-              selectedShopId={selectedShopId}
-              onSelectShop={handleSelectMarker}
               externalItems={externalResults}
+              selectedShopId={selectedShopId}
               selectedExternalPlaceId={selectedExternalPlaceId}
+              onSelectShop={handleSelectMarker}
               onSelectExternal={handleSelectExternalMarker}
-              onCenterSettled={handleCenterSettled}
+              onCenterSettled={handleMobileViewportSettled}
+              centerHint={centerHint}
+              initialViewport={mobileInitialViewport}
+              currentLocation={currentLocation}
+              recenterToken={recenterToken}
+              onRecenter={handleRecenter}
               selectedDistanceMiles={selectedDistanceMiles}
               openingExternalId={openingExternalId}
               onViewStored={(shopId) => router.push(`/shops/${shopId}`)}
               onViewExternal={handleOpenExternal}
               onDismissSelection={handleDismissSelection}
+              onClose={() => setMobileTab("list")}
+              filters={filters}
+              onFiltersChange={setFilters}
+              searchThisAreaVisible={searchThisAreaVisible}
+              onSearchThisArea={handleSearchThisArea}
+              searchingArea={searchingArea}
             />
+          )}
+
+          <div
+            className={`grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2 lg:items-start ${
+              mobileTab === "map" ? "hidden lg:grid" : ""
+            }`}
+          >
+            <div className="min-w-0 space-y-3">
+              {filteredEmpty ? (
+                <ExploreEmptyState variant={listEmptyVariant!} />
+              ) : (
+                <>
+                  {externalResults.length > 0 && (
+                    <div className="pb-1">
+                      <GoogleAttribution />
+                    </div>
+                  )}
+                  {sortedItems.map(({ entry, distance }, index) => (
+                    <Fragment key={entry.source === "stored" ? entry.data.shopId : entry.data.googlePlaceId}>
+                      {renderCard(entry, distance)}
+                      {index === PASSPORT_MODULE_MOBILE_INDEX && upNextGoal && (
+                        <div className="lg:hidden">
+                          <PassportProgressModule goal={upNextGoal} />
+                        </div>
+                      )}
+                    </Fragment>
+                  ))}
+                </>
+              )}
+            </div>
+
+            {/* Desktop-only embedded map, mobile uses the full-screen
+                overlay above instead while Map is active. */}
+            <div className="hidden lg:sticky lg:top-24 lg:block">
+              <ExploreMap
+                items={results}
+                selectedShopId={selectedShopId}
+                onSelectShop={handleSelectMarker}
+                externalItems={externalResults}
+                selectedExternalPlaceId={selectedExternalPlaceId}
+                onSelectExternal={handleSelectExternalMarker}
+                onCenterSettled={handleCenterSettled}
+                centerHint={centerHint}
+                currentLocation={currentLocation}
+                recenterToken={recenterToken}
+                selectedDistanceMiles={selectedDistanceMiles}
+                openingExternalId={openingExternalId}
+                onViewStored={(shopId) => router.push(`/shops/${shopId}`)}
+                onViewExternal={handleOpenExternal}
+                onDismissSelection={handleDismissSelection}
+              />
+              {searchThisAreaVisible && (
+                <div className="mt-3 flex justify-center">
+                  <SearchThisAreaButton
+                    onSearch={handleSearchThisArea}
+                    searching={searchingArea}
+                    disabled={!canSearchArea}
+                  />
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {addCafeContext && (

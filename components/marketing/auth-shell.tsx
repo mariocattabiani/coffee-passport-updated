@@ -26,7 +26,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
         <div className="flex flex-col items-start gap-6">
           <PassportStamp className="[&_svg_circle]:stroke-crema [&_svg_path]:stroke-crema [&_svg_text]:fill-crema" />
           <p className="max-w-sm text-2xl font-heading font-medium leading-snug text-crema">
-            "What should I order here?"
+            &quot;What should I order here?&quot;
           </p>
           <p className="max-w-sm text-sm text-crema/60">
             Every cup you log becomes part of your coffee journey — and helps

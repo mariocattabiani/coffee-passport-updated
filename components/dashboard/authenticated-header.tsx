@@ -78,9 +78,9 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
         </div>
       </header>
 
-      {/* Mobile-only bottom tab bar. Four destinations, unchanged:
-          Dashboard, Discover, Log (still visually raised/prominent),
-          Passport. Friends is deliberately not a fifth tab here, it's
+      {/* Mobile-only bottom tab bar. Five primary destinations:
+          Dashboard, Explore, Log (still visually raised/prominent), Discover,
+          Passport. Friends is deliberately not a sixth tab here, it's
           reachable from Discover's own header on mobile instead.
           Logout lives on the Passport page. Padded for the device's
           safe area so it never sits under a phone's home indicator. */}
@@ -100,6 +100,22 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
           Dashboard
         </Link>
         <Link
+          href="/explore"
+          aria-current={active === "explore" ? "page" : undefined}
+          className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium ${
+            active === "explore" ? "text-espresso" : "text-charcoal/40"
+          }`}
+        >
+          <Compass className="h-5 w-5" />
+          Explore
+        </Link>
+        <Link href="/log" className="flex flex-1 flex-col items-center gap-1 py-1.5" aria-label="Log a coffee">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-espresso text-crema shadow-card">
+            <Plus className="h-5 w-5" />
+          </span>
+          <span className="text-[11px] font-medium text-espresso">Log</span>
+        </Link>
+        <Link
           href="/discover"
           aria-current={active === "discover" ? "page" : undefined}
           className={`relative flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium ${
@@ -116,12 +132,6 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
             )}
           </span>
           Discover
-        </Link>
-        <Link href="/log" className="flex flex-1 flex-col items-center gap-1 py-1.5" aria-label="Log a coffee">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-espresso text-crema shadow-card">
-            <Plus className="h-5 w-5" />
-          </span>
-          <span className="text-[11px] font-medium text-espresso">Log</span>
         </Link>
         <Link
           href="/passport"

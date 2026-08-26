@@ -24,7 +24,7 @@ export function ExternalResultCard({ item, distanceMiles, selected, opening, onO
 
   return (
     <div
-      className={`flex gap-3 rounded-xl border border-dashed p-4 transition-shadow ${
+      className={`flex w-full min-w-0 max-w-full gap-3 overflow-hidden rounded-xl border border-dashed p-4 transition-shadow ${
         selected ? "border-espresso bg-crema/50 shadow-card" : "border-charcoal/25 bg-white/70"
       }`}
     >

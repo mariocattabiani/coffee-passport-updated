@@ -34,7 +34,7 @@ export default function LandingPage() {
               remembering.
             </h1>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-charcoal/70">
-              Log every cup, discover what's actually worth ordering, and
+              Log every cup, discover what&apos;s actually worth ordering, and
               build a passport of the coffee shops that shaped your taste —
               one stamp at a time.
             </p>
@@ -132,12 +132,12 @@ export default function LandingPage() {
                 <Compass className="h-5 w-5 text-espresso" />
               </div>
               <h2 className="font-heading text-3xl font-semibold leading-tight text-espresso sm:text-4xl">
-                Know what's good before you order.
+                Know what&apos;s good before you order.
               </h2>
               <p className="mt-4 max-w-md text-charcoal/70">
                 Most apps stop at hours and directions. Coffee Passport shows
                 you the drink locals actually order — what your friends
-                loved, what's trending this week, and what's worth the trip.
+                loved, what&apos;s trending this week, and what&apos;s worth the trip.
               </p>
               <ul className="mt-6 space-y-3 text-sm text-charcoal/70">
                 <li className="flex items-start gap-2">
@@ -151,7 +151,7 @@ export default function LandingPage() {
               </ul>
               <div className="mt-6 flex flex-wrap gap-2">
                 <span className="rounded-full bg-espresso/5 px-3 py-1.5 text-xs font-medium text-espresso">
-                  Friends' picks
+                  Friends&apos; picks
                 </span>
                 <span className="rounded-full bg-espresso/5 px-3 py-1.5 text-xs font-medium text-espresso">
                   Trending this week
@@ -247,7 +247,7 @@ export default function LandingPage() {
               </h2>
               <p className="mx-auto mt-4 max-w-sm text-crema/80">
                 Your passport fills in quietly, one café at a time — a
-                record of where you've been and what you'd order again.
+                record of where you&apos;ve been and what you&apos;d order again.
               </p>
             </Reveal>
 
@@ -324,10 +324,10 @@ export default function LandingPage() {
                 <PassportStamp className="relative" backing />
               </div>
               <h2 className="font-heading text-3xl font-semibold text-crema sm:text-4xl">
-                Build the world's largest community of coffee lovers.
+                Build the world&apos;s largest community of coffee lovers.
               </h2>
               <p className="max-w-md text-crema/70">
-                Your coffee journey starts with a single cup. Let's log it.
+                Your coffee journey starts with a single cup. Let&apos;s log it.
               </p>
               <Button asChild size="lg" variant="secondary" className="mt-2">
                 <Link href="/signup">Create your passport</Link>

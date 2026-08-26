@@ -66,10 +66,10 @@ export default async function ExplorePage() {
   const upNextGoal = toUpNextGoalDisplay(selectUpNext(achievementProgress)[0] ?? null);
 
   return (
-    <div className="min-h-screen bg-crema pb-24 sm:pb-10">
+    <div className="min-h-screen overflow-x-clip bg-crema pb-24 sm:pb-10">
       <AuthenticatedHeader active="explore" />
 
-      <main className="container max-w-6xl space-y-6 py-6 sm:py-10">
+      <main className="container min-w-0 max-w-6xl space-y-6 py-6 sm:py-10">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-espresso sm:text-3xl">Explore</h1>
           <p className="text-sm text-charcoal/60">Where should you get coffee?</p>

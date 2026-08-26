@@ -130,7 +130,7 @@ export function DrinkPicker({ shopId, selectedDrink, onSelect, onChange }: Drink
         <div className="mt-3 rounded-lg border border-dashed border-border bg-white p-3">
           <p className="flex items-center gap-1.5 text-sm font-medium text-espresso">
             <Plus className="h-3.5 w-3.5" />
-            Add "{trimmedQuery}"
+            Add &quot;{trimmedQuery}&quot;
           </p>
 
           <div className="mt-2 flex gap-2">

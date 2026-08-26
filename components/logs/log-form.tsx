@@ -137,7 +137,7 @@ export function LogForm({ userId, initialShop = null }: LogFormProps) {
       </button>
 
       <h1 className="font-heading text-3xl font-semibold text-espresso">Log a coffee</h1>
-      <p className="mt-1.5 text-charcoal/60">A few taps and it's part of your passport.</p>
+      <p className="mt-1.5 text-charcoal/60">A few taps and it&apos;s part of your passport.</p>
 
       {/* SECTION 1: SHOP */}
       <section className="mt-8">

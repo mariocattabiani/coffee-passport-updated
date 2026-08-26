@@ -10,6 +10,11 @@ interface MapCafePreviewProps {
   opening: boolean;
   onView: () => void;
   onDismiss: () => void;
+  /** "embedded" (default) is the compact box in the desktop split view
+   *  and the old mobile card. "fullscreen" additionally clears the
+   *  device's own safe-area inset, since its bottom edge is the real
+   *  physical viewport edge, not just a box inside the page. */
+  variant?: "embedded" | "fullscreen";
 }
 
 /**
@@ -19,21 +24,25 @@ interface MapCafePreviewProps {
  * or (for an external result) can trigger the Add to Coffee Passport
  * flow, tapping the marker itself never does either.
  */
-export function MapCafePreview({ item, distanceMiles, opening, onView, onDismiss }: MapCafePreviewProps) {
+export function MapCafePreview({ item, distanceMiles, opening, onView, onDismiss, variant = "embedded" }: MapCafePreviewProps) {
   const locationLine =
     distanceMiles !== null
       ? `${distanceMiles.toFixed(1)} mi away`
       : [item.data.city, item.data.state].filter(Boolean).join(", ");
 
   return (
-    // bottom-20 (80px), not bottom-3, deliberately: Google's default
-    // attribution/logo strip and its zoom control widget (zoomControl
-    // is never disabled on this map) both render at the very bottom of
-    // the map, a small offset would sit directly on top of them. 80px
-    // clears both regardless of viewport width, this is a fixed
-    // vertical clearance, not a responsive value, since Google's own
-    // controls don't resize with the viewport either.
-    <div className="absolute inset-x-3 bottom-20 z-10 rounded-2xl border border-border bg-white p-3.5 shadow-card">
+    // Google's default attribution/logo strip and its zoom control
+    // widget (zoomControl is never disabled on this map) both render
+    // at the very bottom of the map, an 80px clearance keeps this
+    // above both regardless of viewport width, since Google's own
+    // controls don't resize with the viewport either. In fullscreen,
+    // that same 80px is combined with the device's own safe-area
+    // inset, since the map's bottom edge there is the real physical
+    // screen edge, not just a box inside the page.
+    <div
+      className="absolute inset-x-3 z-10 rounded-2xl border border-border bg-white p-3.5 shadow-card"
+      style={variant === "fullscreen" ? { bottom: "calc(env(safe-area-inset-bottom, 0px) + 5rem)" } : { bottom: "5rem" }}
+    >
       <button
         type="button"
         onClick={onDismiss}

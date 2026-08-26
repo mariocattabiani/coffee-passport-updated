@@ -180,7 +180,7 @@ export function EditLogForm({
           {shopCityState ? `, ${shopCityState}` : ""}
         </p>
         <p className="mt-1 text-[11px] uppercase tracking-wide text-charcoal/40">
-          Shop and drink can't be changed after logging
+          Shop and drink can&apos;t be changed after logging
         </p>
       </div>
 

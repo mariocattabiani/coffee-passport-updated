@@ -146,7 +146,7 @@ export function StepProfile({ userId, data, update, onNext, onBack }: StepProfil
           <p className="text-xs text-error">Username already taken.</p>
         )}
         {usernameStatus === "error" && (
-          <p className="text-xs text-error">Couldn't check that username, try again.</p>
+          <p className="text-xs text-error">Couldn&apos;t check that username, try again.</p>
         )}
         {data.username.trim().length > 0 && data.username.trim().length < MIN_USERNAME_LENGTH && (
           <p className="text-xs text-charcoal/40">Username must be at least {MIN_USERNAME_LENGTH} characters.</p>

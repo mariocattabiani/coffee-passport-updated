@@ -18,8 +18,8 @@ export function StepReview({ data, onBack, onSubmit, submitting, error }: StepRe
 
   return (
     <div>
-      <h2 className="font-heading text-2xl font-semibold text-espresso">You're ready</h2>
-      <p className="mt-1.5 text-sm text-charcoal/60">Here's your passport so far.</p>
+      <h2 className="font-heading text-2xl font-semibold text-espresso">You&apos;re ready</h2>
+      <p className="mt-1.5 text-sm text-charcoal/60">Here&apos;s your passport so far.</p>
 
       <div className="mt-6 rounded-xl border border-border bg-white p-5 shadow-soft">
         <div className="flex items-center gap-4">

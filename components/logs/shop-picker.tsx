@@ -84,7 +84,7 @@ export function ShopPicker({ shops, selectedShop, onSelect, onChange }: ShopPick
         ))}
         {filtered.length === 0 && (
           <p className="px-3 py-6 text-center text-sm text-charcoal/40">
-            No shops match "{query}".
+            No shops match &quot;{query}&quot;.
           </p>
         )}
       </div>

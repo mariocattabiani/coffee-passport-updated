@@ -63,7 +63,7 @@ export function StepDrinks({ data, update, onNext, onBack }: StepDrinksProps) {
 
       <div className="mt-8 border-t border-border/60 pt-6">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-charcoal/40">
-          Tea, if that's your thing too
+          Tea, if that&apos;s your thing too
         </p>
         <div className="flex flex-wrap gap-1.5">
           {TEA_DRINKS.map((option) => renderChip(option, "small"))}
