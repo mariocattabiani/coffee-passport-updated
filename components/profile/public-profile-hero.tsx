@@ -25,6 +25,9 @@ export function PublicProfileHero({ profile }: { profile: PublicProfile }) {
           <h1 className="font-heading text-3xl font-semibold text-espresso sm:text-4xl">{profile.firstName}</h1>
         )}
         <p className="text-charcoal/50">@{profile.username}</p>
+        {profile.bio && (
+          <p className="mt-2 max-w-md text-sm italic text-charcoal/60">&ldquo;{profile.bio}&rdquo;</p>
+        )}
 
         {profile.friendshipState !== "self" && (
           <div className="mt-4 flex justify-center sm:justify-start">

@@ -48,9 +48,9 @@ export function FeedColumns({ items }: FeedColumnsProps) {
   const columns = distributeIntoColumns(items, columnCount);
 
   return (
-    <div className="flex gap-4">
+    <div className="flex min-w-0 gap-3">
       {columns.map((column, i) => (
-        <div key={i} className="flex flex-1 flex-col gap-4">
+        <div key={i} className="flex min-w-0 flex-1 flex-col gap-3">
           {column.map((item) => (
             <FeedCard key={item.logId} item={item} />
           ))}

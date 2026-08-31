@@ -45,6 +45,48 @@ interface PublicFeedRow {
   username: string | null;
   first_name: string | null;
   avatar_url: string | null;
+  like_count: number;
+  viewer_has_liked: boolean;
+  viewer_has_saved: boolean;
+}
+
+function mapFeedRow(r: PublicFeedRow, signedUrlByPath: Map<string, string>): FeedItem {
+  return {
+    logId: r.log_id,
+    loggedAt: r.logged_at,
+    drinkRating: r.drink_rating,
+    caption: r.caption,
+    temperature: r.temperature,
+    photoUrl: r.photo_path ? signedUrlByPath.get(r.photo_path) ?? null : null,
+    drinkId: r.drink_id,
+    drinkName: r.drink_name,
+    category: r.category,
+    shopId: r.shop_id,
+    shopName: r.shop_name,
+    username: r.username,
+    firstName: r.first_name,
+    avatarUrl: r.avatar_url,
+    likeCount: r.like_count,
+    viewerHasLiked: r.viewer_has_liked,
+    viewerHasSaved: r.viewer_has_saved,
+  };
+}
+
+async function signPhotoPaths(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  results: PublicFeedRow[]
+): Promise<Map<string, string>> {
+  const photoPaths = results.map((r) => r.photo_path).filter((p): p is string => !!p);
+  const signedUrlByPath = new Map<string, string>();
+  if (photoPaths.length > 0) {
+    const { data: signed } = await supabase.storage
+      .from("drink-photos")
+      .createSignedUrls(photoPaths, SIGNED_URL_TTL_SECONDS);
+    signed?.forEach((s) => {
+      if (s.signedUrl && !s.error) signedUrlByPath.set(s.path ?? "", s.signedUrl);
+    });
+  }
+  return signedUrlByPath;
 }
 
 /**
@@ -52,7 +94,9 @@ interface PublicFeedRow {
  * id) of the last item from the previous page, or null for the first
  * page. Every field returned here already passed through
  * get_public_feed's own approved-columns list, this function never
- * touches drink_logs directly.
+ * touches drink_logs directly. like_count/viewer_has_liked/
+ * viewer_has_saved arrive in the same round trip, computed via LATERAL
+ * joins inside the RPC itself, never a follow-up per-card query.
  */
 export async function getPublicFeedPage(cursor: FeedCursor | null): Promise<FeedPageResult> {
   const supabase = await createClient();
@@ -65,33 +109,8 @@ export async function getPublicFeedPage(cursor: FeedCursor | null): Promise<Feed
   });
 
   const results = (data ?? []) as PublicFeedRow[];
-
-  const photoPaths = results.map((r) => r.photo_path).filter((p): p is string => !!p);
-  const signedUrlByPath = new Map<string, string>();
-  if (photoPaths.length > 0) {
-    const { data: signed } = await supabase.storage
-      .from("drink-photos")
-      .createSignedUrls(photoPaths, SIGNED_URL_TTL_SECONDS);
-    signed?.forEach((s) => {
-      if (s.signedUrl && !s.error) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    });
-  }
-
-  const items: FeedItem[] = results.map((r) => ({
-    logId: r.log_id,
-    loggedAt: r.logged_at,
-    drinkRating: r.drink_rating,
-    caption: r.caption,
-    temperature: r.temperature,
-    photoUrl: r.photo_path ? signedUrlByPath.get(r.photo_path) ?? null : null,
-    drinkName: r.drink_name,
-    category: r.category,
-    shopId: r.shop_id,
-    shopName: r.shop_name,
-    username: r.username,
-    firstName: r.first_name,
-    avatarUrl: r.avatar_url,
-  }));
+  const signedUrlByPath = await signPhotoPaths(supabase, results);
+  const items = results.map((r) => mapFeedRow(r, signedUrlByPath));
 
   const last = results[results.length - 1];
   const nextCursor: FeedCursor | null =
@@ -107,7 +126,8 @@ export async function getPublicFeedPage(cursor: FeedCursor | null): Promise<Feed
  * architecture: get_friends_feed already filters to accepted friends
  * server-side, and still filters to visibility = 'public' on top of
  * that, friendship never grants access to a private log. Same cursor
- * convention, same short-lived signed URL window, same field mapping.
+ * convention, same short-lived signed URL window, same field mapping,
+ * same social-state columns.
  */
 export async function getFriendsFeedPage(cursor: FeedCursor | null): Promise<FeedPageResult> {
   const supabase = await createClient();
@@ -120,39 +140,14 @@ export async function getFriendsFeedPage(cursor: FeedCursor | null): Promise<Fee
   });
 
   const results = (data ?? []) as PublicFeedRow[];
+  const signedUrlByPath = await signPhotoPaths(supabase, results);
+  const items = results.map((r) => mapFeedRow(r, signedUrlByPath));
 
-  const photoPaths = results.map((r) => r.photo_path).filter((p): p is string => !!p);
-  const signedUrlByPath = new Map<string, string>();
-  if (photoPaths.length > 0) {
-    const { data: signed } = await supabase.storage
-      .from("drink-photos")
-      .createSignedUrls(photoPaths, SIGNED_URL_TTL_SECONDS);
-    signed?.forEach((s) => {
-      if (s.signedUrl && !s.error) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    });
-  }
-
-  const items: FeedItem[] = results.map((r) => ({
-    logId: r.log_id,
-    loggedAt: r.logged_at,
-    drinkRating: r.drink_rating,
-    caption: r.caption,
-    temperature: r.temperature,
-    photoUrl: r.photo_path ? signedUrlByPath.get(r.photo_path) ?? null : null,
-    drinkName: r.drink_name,
-    category: r.category,
-    shopId: r.shop_id,
-    shopName: r.shop_name,
-    username: r.username,
-    firstName: r.first_name,
-    avatarUrl: r.avatar_url,
-  }));
-
-  const friendsLast = results[results.length - 1];
-  const friendsNextCursor: FeedCursor | null =
-    results.length === PAGE_SIZE && friendsLast
-      ? { loggedAt: friendsLast.logged_at, createdAt: friendsLast.created_at, id: friendsLast.log_id }
+  const last = results[results.length - 1];
+  const nextCursor: FeedCursor | null =
+    results.length === PAGE_SIZE && last
+      ? { loggedAt: last.logged_at, createdAt: last.created_at, id: last.log_id }
       : null;
 
-  return { items, nextCursor: friendsNextCursor };
+  return { items, nextCursor };
 }

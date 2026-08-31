@@ -26,12 +26,12 @@ export default async function DiscoverPage() {
   const hasPending = typeof pendingCount === "number" && pendingCount > 0;
 
   return (
-    <div className="min-h-screen bg-crema pb-24 sm:pb-10">
+    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-crema pb-24 sm:pb-10">
       <AuthenticatedHeader active="discover" />
 
-      <main className="container max-w-5xl space-y-6 py-6 sm:py-10">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+      <main className="container max-w-5xl min-w-0 space-y-6 py-6 sm:py-10">
+        <div className="flex min-w-0 items-start justify-between gap-4">
+          <div className="min-w-0">
             <h1 className="font-heading text-2xl font-semibold text-espresso sm:text-3xl">Discover</h1>
             <p className="text-sm text-charcoal/60">What people are drinking, across Coffee Passport</p>
           </div>

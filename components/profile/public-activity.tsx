@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
-import { FeedColumns } from "@/components/discover/feed-columns";
+import { ProfileActivityGrid } from "@/components/profile/profile-activity-grid";
 import { Button } from "@/components/ui/button";
 import { getPublicUserActivityPage } from "@/lib/profile/public-actions";
 import type { FeedCursor } from "@/lib/discover/actions";
@@ -16,8 +16,8 @@ interface PublicActivityProps {
   initialCursor: FeedCursor | null;
 }
 
-/** Reuses FeedColumns exactly as Discover does, no separate masonry
- *  implementation for this one section. */
+/** Uses ProfileActivityGrid, a profile-specific 1/2-column grid, not
+ *  Discover's viewport-driven FeedColumns — see that component for why. */
 export function PublicActivity({ username, identity, initialItems, initialCursor }: PublicActivityProps) {
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState(initialCursor);
@@ -42,7 +42,7 @@ export function PublicActivity({ username, identity, initialItems, initialCursor
 
   return (
     <div>
-      <FeedColumns items={items} />
+      <ProfileActivityGrid items={items} />
       {cursor && (
         <div className="mt-6 flex justify-center">
           <Button variant="outline" onClick={handleLoadMore} disabled={loadingMore} className="gap-2">

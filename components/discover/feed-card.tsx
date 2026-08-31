@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { MapPin, User } from "lucide-react";
+import { User } from "lucide-react";
 
-import { StarDisplay } from "@/components/logs/star-display";
+import { LogCardBody } from "@/components/logs/log-card-body";
+import { SocialActionRow } from "@/components/logs/social-action-row";
 import { formatRelativeDate } from "@/lib/drink-logs/format";
 
 export interface FeedItem {
@@ -11,6 +12,7 @@ export interface FeedItem {
   caption: string | null;
   temperature: "hot" | "iced" | null;
   photoUrl: string | null;
+  drinkId: string;
   drinkName: string;
   category: "coffee" | "tea";
   shopId: string;
@@ -18,6 +20,9 @@ export interface FeedItem {
   username: string | null;
   firstName: string | null;
   avatarUrl: string | null;
+  likeCount: number;
+  viewerHasLiked: boolean;
+  viewerHasSaved: boolean;
 }
 
 interface FeedCardProps {
@@ -29,23 +34,27 @@ interface FeedCardProps {
  * public post, not the owner's own log, so it carries an identity
  * header instead of Edit/Delete controls. The identity block links to
  * the person's public profile, not the whole card, that stays reserved
- * for the café link inside the card body, so there's never a nested
+ * for the café link inside the shared body, so there's never a nested
  * or ambiguous click target.
+ *
+ * The body itself (media, drink/rating, café, caption, tags) is
+ * LogCardBody, the exact same component LogCard uses, this card only
+ * ever owns the identity header.
  */
 export function FeedCard({ item }: FeedCardProps) {
   const displayName = item.firstName || item.username || "Someone";
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-white shadow-soft">
-      <div className="flex items-center gap-2.5 px-4 pt-4">
+    <div className="w-full min-w-0 overflow-hidden rounded-xl border border-border bg-white shadow-soft">
+      <div className="flex items-center gap-2 px-3 py-2.5">
         {item.username ? (
-          <Link href={`/users/${item.username}`} className="flex min-w-0 items-center gap-2.5 hover:opacity-80">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-latte/30">
+          <Link href={`/users/${item.username}`} className="flex min-w-0 items-center gap-2 hover:opacity-80">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-latte/30">
               {item.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.avatarUrl} alt="" className="h-full w-full object-cover" />
               ) : (
-                <User className="h-4 w-4 text-espresso/40" />
+                <User className="h-3.5 w-3.5 text-espresso/40" />
               )}
             </div>
             <p className="truncate text-sm font-medium text-charcoal">
@@ -54,13 +63,13 @@ export function FeedCard({ item }: FeedCardProps) {
             </p>
           </Link>
         ) : (
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-latte/30">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-latte/30">
               {item.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.avatarUrl} alt="" className="h-full w-full object-cover" />
               ) : (
-                <User className="h-4 w-4 text-espresso/40" />
+                <User className="h-3.5 w-3.5 text-espresso/40" />
               )}
             </div>
             <p className="truncate text-sm font-medium text-charcoal">{displayName}</p>
@@ -69,40 +78,27 @@ export function FeedCard({ item }: FeedCardProps) {
         <p className="ml-auto shrink-0 text-xs text-charcoal/40">{formatRelativeDate(item.loggedAt)}</p>
       </div>
 
-      {item.photoUrl && (
-        <div className="relative mt-3 aspect-[4/3] w-full bg-charcoal/5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.photoUrl} alt="" className="h-full w-full object-cover" />
-        </div>
-      )}
+      <LogCardBody
+        data={{
+          drinkName: item.drinkName,
+          drinkRating: item.drinkRating,
+          shopId: item.shopId,
+          shopName: item.shopName,
+          caption: item.caption,
+          category: item.category,
+          temperature: item.temperature,
+          photoUrl: item.photoUrl,
+        }}
+      />
 
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="font-medium text-charcoal">{item.drinkName}</p>
-            <Link
-              href={`/shops/${item.shopId}`}
-              className="flex items-center gap-1 text-xs text-charcoal/50 hover:text-espresso hover:underline"
-            >
-              <MapPin className="h-3 w-3" />
-              {item.shopName}
-            </Link>
-          </div>
-          <StarDisplay rating={item.drinkRating} size="h-3 w-3" showValue />
-        </div>
-
-        {item.caption && <p className="mt-2 text-sm text-charcoal/70">{item.caption}</p>}
-
-        <div className="mt-3 flex items-center gap-2 text-xs text-charcoal/40">
-          <span className="capitalize">{item.category}</span>
-          {item.temperature && (
-            <>
-              <span aria-hidden="true">•</span>
-              <span className="capitalize">{item.temperature}</span>
-            </>
-          )}
-        </div>
-      </div>
+      <SocialActionRow
+        logId={item.logId}
+        shopId={item.shopId}
+        drinkId={item.drinkId}
+        initialLikeCount={item.likeCount}
+        initialViewerHasLiked={item.viewerHasLiked}
+        initialViewerHasSaved={item.viewerHasSaved}
+      />
     </div>
   );
 }

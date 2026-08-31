@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Profile, BeverageCategory, Temperature } from "@/lib/supabase/types";
 import { AuthenticatedHeader } from "@/components/dashboard/authenticated-header";
 import { PassportHeader } from "@/components/passport/passport-header";
+import { PassportLibraryLinks } from "@/components/passport/passport-library-links";
 import { CoffeeMap, type MapShop } from "@/components/passport/coffee-map";
 import { FavoritesSection, type FavoriteSummary } from "@/components/passport/favorites-section";
 import { PassportHistory } from "@/components/passport/passport-history";
@@ -13,6 +14,7 @@ import { UpNext } from "@/components/passport/up-next";
 import { Stamps } from "@/components/passport/stamps";
 import { PlacesExplored } from "@/components/passport/places-explored";
 import { evaluatePassportAchievements, getEarnedAchievements } from "@/lib/passport/actions";
+import { getMySaves } from "@/lib/profile/saved-actions";
 import {
   ACHIEVEMENT_DEFINITIONS,
   computeAchievementProgress,
@@ -72,15 +74,22 @@ export default async function PassportPage() {
   // One query for everything: stats, favorites, and the full history
   // list are all derived from this same result, so there's exactly one
   // round trip for the user's log data, no matter how the page uses it.
-  const { data: rows } = await supabase
-    .from("drink_logs")
-    .select(
-      "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, logged_at, shop:shops(name,city,state,latitude,longitude), drink:drinks(name)"
-    )
-    .eq("user_id", user.id)
-    .order("logged_at", { ascending: false })
-    .order("created_at", { ascending: false })
-    .returns<FullLogRow[]>();
+  // Fetched in parallel with the user's saves — Want to Try's count on
+  // this page needs the same get_my_saves() the dedicated Want to Try
+  // page and the self-profile Saved tab already call, not a second,
+  // parallel counting mechanism.
+  const [{ data: rows }, savedItems] = await Promise.all([
+    supabase
+      .from("drink_logs")
+      .select(
+        "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, logged_at, shop:shops(name,city,state,latitude,longitude), drink:drinks(name)"
+      )
+      .eq("user_id", user.id)
+      .order("logged_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .returns<FullLogRow[]>(),
+    getMySaves(),
+  ]);
 
   const logs = rows ?? [];
 
@@ -327,10 +336,10 @@ export default async function PassportPage() {
   })();
 
   return (
-    <div className="min-h-screen bg-crema pb-24 sm:pb-10">
+    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-crema pb-24 sm:pb-10">
       <AuthenticatedHeader active="passport" />
 
-      <main className="container max-w-5xl space-y-8 py-6 sm:space-y-10 sm:py-10">
+      <main className="container max-w-5xl min-w-0 space-y-8 py-6 sm:space-y-10 sm:py-10">
         <PassportHeader
           profile={profile}
           stats={
@@ -347,6 +356,16 @@ export default async function PassportPage() {
           exploringSinceDate={earliestLoggedAt}
           latestStamp={latestStamp}
         />
+
+        {/*
+          Unconditional, even when hasLogs is false: Want to Try can be
+          non-zero before someone has logged a single coffee — the
+          product loop starts at Discover -> Save, well before
+          Visit -> Log -> Passport — so this row would hide real,
+          useful state for exactly the new users it's meant to guide
+          if it were nested inside the hasLogs branch below.
+        */}
+        <PassportLibraryLinks beenCount={cafesExplored} wantToTryCount={savedItems.length} />
 
         {hasLogs ? (
           <>

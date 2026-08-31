@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { MapPin, Pencil, Trash2, Thermometer } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 
 import { DeleteLogDialog } from "@/components/logs/delete-log-dialog";
 import { StarDisplay } from "@/components/logs/star-display";
+import { LogCardBody } from "@/components/logs/log-card-body";
 import { formatPrice, formatRelativeDate } from "@/lib/drink-logs/format";
 import type { BeverageCategory } from "@/lib/supabase/types";
 
@@ -36,44 +37,37 @@ interface LogCardProps {
   onDeleted: (logId: string) => void;
 }
 
+/**
+ * The owner's own log. Shares LogCardBody (media, drink/rating, café,
+ * caption, coffee/tea + hot/iced tags) with FeedCard, exactly the same
+ * component, not a parallel copy. What's unique here is a second,
+ * owner-only meta row (shop rating, size, price, date) and the
+ * Edit/Delete controls, neither of which has any place on someone
+ * else's public post.
+ */
 export function LogCard({ log, onDeleted }: LogCardProps) {
   const [showDelete, setShowDelete] = useState(false);
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-white shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card">
-      {log.photoUrl && (
-        <div className="relative aspect-[4/3] w-full bg-charcoal/5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={log.photoUrl} alt="" className="h-full w-full object-cover" />
-        </div>
-      )}
+      <LogCardBody
+        data={{
+          drinkName: log.drinkName,
+          drinkRating: log.drinkRating,
+          shopId: log.shopId,
+          shopName: log.shopName,
+          caption: log.caption,
+          category: log.beverageCategory,
+          temperature: log.temperature,
+          photoUrl: log.photoUrl,
+        }}
+      />
 
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="font-medium text-charcoal">{log.drinkName}</p>
-            <p className="flex items-center gap-1 text-xs text-charcoal/50">
-              <MapPin className="h-3 w-3" />
-              <Link href={`/shops/${log.shopId}`} className="hover:text-espresso hover:underline">
-                {log.shopName}
-              </Link>
-            </p>
-          </div>
-          <StarDisplay rating={log.drinkRating} size="h-3 w-3" showValue />
-        </div>
-
-        {log.caption && <p className="mt-2 text-sm text-charcoal/70">{log.caption}</p>}
-
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-charcoal/50">
+      <div className="px-4 pb-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 pt-3 text-xs text-charcoal/50">
           <span className="flex items-center gap-1">
             Shop rating <StarDisplay rating={log.shopRating} size="h-3 w-3" />
           </span>
-          {log.temperature && (
-            <span className="flex items-center gap-1 capitalize">
-              <Thermometer className="h-3 w-3" />
-              {log.temperature}
-            </span>
-          )}
           {log.size && <span>{log.size}</span>}
           {log.price !== null && <span>{formatPrice(log.price)}</span>}
           <span className="ml-auto">{formatRelativeDate(log.loggedAt)}</span>

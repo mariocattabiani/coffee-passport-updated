@@ -13,9 +13,11 @@ export interface PublicProfile {
   username: string;
   firstName: string | null;
   avatarUrl: string | null;
+  bio: string | null;
   friendshipState: FriendshipState;
   publicCoffeesLogged: number;
   publicCafesVisited: number;
+  publicCitiesVisited: number;
   favoriteDrinkName: string | null;
   favoriteShopName: string | null;
 }
@@ -25,9 +27,11 @@ interface PublicProfileRow {
   username: string;
   first_name: string | null;
   avatar_url: string | null;
+  bio: string | null;
   friendship_state: string;
   public_coffees_logged: number;
   public_cafes_visited: number;
+  public_cities_visited: number;
   favorite_drink_name: string | null;
   favorite_shop_name: string | null;
 }
@@ -49,9 +53,11 @@ export async function getPublicUserProfile(username: string): Promise<PublicProf
     username: row.username,
     firstName: row.first_name,
     avatarUrl: row.avatar_url,
+    bio: row.bio,
     friendshipState: row.friendship_state as FriendshipState,
     publicCoffeesLogged: row.public_coffees_logged,
     publicCafesVisited: row.public_cafes_visited,
+    publicCitiesVisited: row.public_cities_visited,
     favoriteDrinkName: row.favorite_drink_name,
     favoriteShopName: row.favorite_shop_name,
   };
@@ -70,6 +76,9 @@ interface UserActivityRow {
   category: "coffee" | "tea";
   shop_id: string;
   shop_name: string;
+  like_count: number;
+  viewer_has_liked: boolean;
+  viewer_has_saved: boolean;
 }
 
 export interface UserActivityPageResult {
@@ -118,6 +127,7 @@ export async function getPublicUserActivityPage(
     caption: r.caption,
     temperature: r.temperature,
     photoUrl: r.photo_path ? signedUrlByPath.get(r.photo_path) ?? null : null,
+    drinkId: r.drink_id,
     drinkName: r.drink_name,
     category: r.category,
     shopId: r.shop_id,
@@ -125,6 +135,9 @@ export async function getPublicUserActivityPage(
     username: identity.username,
     firstName: identity.firstName,
     avatarUrl: identity.avatarUrl,
+    likeCount: r.like_count,
+    viewerHasLiked: r.viewer_has_liked,
+    viewerHasSaved: r.viewer_has_saved,
   }));
 
   const last = results[results.length - 1];
