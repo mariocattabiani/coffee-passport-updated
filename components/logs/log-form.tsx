@@ -109,6 +109,8 @@ export function LogForm({ userId, initialShop = null }: LogFormProps) {
       shopRating: data.shopRating!,
       caption: data.caption.trim() || null,
       photoPath,
+      photoPositionX: photoPath ? data.photoPositionX : null,
+      photoPositionY: photoPath ? data.photoPositionY : null,
       price: data.price.trim() ? Number(data.price) : null,
       size: data.size.trim() || null,
       temperature: data.temperature,
@@ -203,7 +205,20 @@ export function LogForm({ userId, initialShop = null }: LogFormProps) {
                   <Label className="mb-1.5 block text-xs text-charcoal/60">Photo</Label>
                   <PhotoUpload
                     preview={data.photoPreview}
-                    onChange={(file, preview) => update({ photoFile: file, photoPreview: preview })}
+                    positionX={data.photoPositionX}
+                    positionY={data.photoPositionY}
+                    onChange={(selection) => {
+                      if (selection === null) {
+                        update({ photoFile: null, photoPreview: null, photoPositionX: 50, photoPositionY: 50 });
+                      } else {
+                        update({
+                          photoFile: selection.file ?? data.photoFile,
+                          photoPreview: selection.preview,
+                          photoPositionX: selection.positionX,
+                          photoPositionY: selection.positionY,
+                        });
+                      }
+                    }}
                   />
                 </div>
 

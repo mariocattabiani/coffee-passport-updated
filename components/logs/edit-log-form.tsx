@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { StarRating } from "@/components/logs/star-rating";
-import { PhotoUpload } from "@/components/logs/photo-upload";
+import { PhotoUpload, type PhotoSelection } from "@/components/logs/photo-upload";
 import { createClient } from "@/lib/supabase/client";
 import { updateDrinkLog } from "@/lib/drink-logs/actions";
 import type { BeverageCategory, Temperature } from "@/lib/supabase/types";
@@ -35,6 +35,8 @@ interface EditLogFormProps {
   drinkName: string;
   beverageCategory: BeverageCategory;
   initialPhotoSignedUrl: string | null;
+  initialPhotoPositionX: number | null;
+  initialPhotoPositionY: number | null;
   initial: {
     drinkRating: number;
     shopRating: number;
@@ -61,6 +63,8 @@ export function EditLogForm({
   drinkName,
   beverageCategory,
   initialPhotoSignedUrl,
+  initialPhotoPositionX,
+  initialPhotoPositionY,
   initial,
 }: EditLogFormProps) {
   const router = useRouter();
@@ -83,6 +87,8 @@ export function EditLogForm({
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(initialPhotoSignedUrl);
+  const [photoPositionX, setPhotoPositionX] = useState<number>(initialPhotoPositionX ?? 50);
+  const [photoPositionY, setPhotoPositionY] = useState<number>(initialPhotoPositionY ?? 50);
   const [photoRemoved, setPhotoRemoved] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -100,10 +106,26 @@ export function EditLogForm({
     return `${year}-${month}-${day}`;
   })();
 
-  function handlePhotoChange(file: File | null, preview: string | null) {
-    setPhotoFile(file);
-    setPhotoPreview(preview);
-    setPhotoRemoved(file === null && preview === null);
+  function handlePhotoChange(selection: PhotoSelection | null) {
+    if (selection === null) {
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      setPhotoPositionX(50);
+      setPhotoPositionY(50);
+      setPhotoRemoved(true);
+      return;
+    }
+
+    // selection.file is null for a reposition-only change (see
+    // PhotoUpload) — the underlying photo (new upload or the existing
+    // one) stays whatever it already was, only the position moves.
+    if (selection.file) {
+      setPhotoFile(selection.file);
+    }
+    setPhotoPreview(selection.preview);
+    setPhotoPositionX(selection.positionX);
+    setPhotoPositionY(selection.positionY);
+    setPhotoRemoved(false);
   }
 
   async function handleSubmit() {
@@ -147,6 +169,8 @@ export function EditLogForm({
       temperature,
       newPhotoPath,
       removePhoto: photoRemoved && !newPhotoPath,
+      photoPositionX: photoRemoved && !newPhotoPath ? null : photoPositionX,
+      photoPositionY: photoRemoved && !newPhotoPath ? null : photoPositionY,
       loggedAtDate: dateWasChanged ? loggedAtDate || null : null,
       timeZone,
       visibility,
@@ -194,7 +218,12 @@ export function EditLogForm({
         <div className="mt-6 space-y-4 border-t border-border/60 pt-4">
           <div>
             <Label className="mb-1.5 block text-xs text-charcoal/60">Photo</Label>
-            <PhotoUpload preview={photoPreview} onChange={handlePhotoChange} />
+            <PhotoUpload
+              preview={photoPreview}
+              positionX={photoPositionX}
+              positionY={photoPositionY}
+              onChange={handlePhotoChange}
+            />
           </div>
 
           <div>

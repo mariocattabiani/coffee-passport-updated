@@ -59,6 +59,8 @@ export default async function EditLogPage({ params }: { params: Promise<{ id: st
         drinkName={drink?.name ?? "Unknown drink"}
         beverageCategory={log.beverage_category}
         initialPhotoSignedUrl={signedPhotoUrl}
+        initialPhotoPositionX={log.photo_position_x}
+        initialPhotoPositionY={log.photo_position_y}
         initial={{
           drinkRating: log.drink_rating,
           shopRating: log.shop_rating,

@@ -95,6 +95,8 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
               category: log.category,
               temperature: log.temperature,
               photoUrl: log.photoUrl,
+              photoPositionX: log.photoPositionX,
+              photoPositionY: log.photoPositionY,
             }}
           />
 

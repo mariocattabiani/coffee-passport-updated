@@ -1,7 +1,8 @@
-import { X, Users, Coffee, MapPin } from "lucide-react";
+import { X, Users } from "lucide-react";
 
 import { StarDisplay } from "@/components/logs/star-display";
 import { GoogleAttribution } from "@/components/explore/google-attribution";
+import { CafeThumbnailPlaceholder } from "@/components/explore/cafe-thumbnail-placeholder";
 import type { ExploreResultItem } from "@/lib/explore/types";
 
 interface MapCafePreviewProps {
@@ -66,14 +67,10 @@ export function MapCafePreview({ item, distanceMiles, opening, onView, onDismiss
               <img src={item.data.photoUrl} alt="" className="h-full w-full object-cover" />
             </div>
           ) : (
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-espresso/5">
-              <Coffee className="h-5 w-5 text-espresso/30" aria-hidden="true" />
-            </div>
+            <CafeThumbnailPlaceholder name={item.data.name} size="sm" />
           )
         ) : (
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-charcoal/5">
-            <MapPin className="h-5 w-5 text-charcoal/30" aria-hidden="true" />
-          </div>
+          <CafeThumbnailPlaceholder name={item.data.name} size="sm" />
         )}
 
         <div className="min-w-0 flex-1">

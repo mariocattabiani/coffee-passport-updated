@@ -37,6 +37,8 @@ interface PublicFeedRow {
   caption: string | null;
   temperature: "hot" | "iced" | null;
   photo_path: string | null;
+  photo_position_x: number | null;
+  photo_position_y: number | null;
   drink_id: string;
   drink_name: string;
   category: "coffee" | "tea";
@@ -62,6 +64,8 @@ function mapFeedRow(r: PublicFeedRow, signedUrlByPath: Map<string, string>): Fee
     caption: r.caption,
     temperature: r.temperature,
     photoUrl: r.photo_path ? signedUrlByPath.get(r.photo_path) ?? null : null,
+    photoPositionX: r.photo_position_x,
+    photoPositionY: r.photo_position_y,
     drinkId: r.drink_id,
     drinkName: r.drink_name,
     category: r.category,

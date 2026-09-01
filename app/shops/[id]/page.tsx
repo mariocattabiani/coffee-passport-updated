@@ -20,6 +20,8 @@ interface OwnLogRow {
   shop_rating: number;
   caption: string | null;
   photo_url: string | null;
+  photo_position_x: number | null;
+  photo_position_y: number | null;
   price: number | null;
   size: string | null;
   temperature: Temperature | null;
@@ -49,6 +51,8 @@ interface ShopActivityRow {
   caption: string | null;
   temperature: Temperature | null;
   photo_path: string | null;
+  photo_position_x: number | null;
+  photo_position_y: number | null;
   drink_id: string;
   drink_name: string;
   category: BeverageCategory;
@@ -85,7 +89,7 @@ export default async function ShopPage({ params }: ShopPageProps) {
       supabase
         .from("drink_logs")
         .select(
-          "id, drink_rating, shop_rating, caption, photo_url, price, size, temperature, beverage_category, created_at, logged_at, drink:drinks(id,name)"
+          "id, drink_rating, shop_rating, caption, photo_url, photo_position_x, photo_position_y, price, size, temperature, beverage_category, created_at, logged_at, drink:drinks(id,name)"
         )
         .eq("shop_id", id)
         .eq("user_id", user.id)
@@ -148,6 +152,8 @@ export default async function ShopPage({ params }: ShopPageProps) {
     caption: a.caption,
     temperature: a.temperature,
     photoUrl: a.photo_path ? activitySignedUrlByPath.get(a.photo_path) ?? null : null,
+    photoPositionX: a.photo_position_x,
+    photoPositionY: a.photo_position_y,
     drinkName: a.drink_name,
     category: a.category,
     username: a.username,
@@ -166,6 +172,8 @@ export default async function ShopPage({ params }: ShopPageProps) {
     caption: l.caption,
     photoUrl: l.photo_url ? signedUrlByPath.get(l.photo_url) ?? null : null,
     photoPath: l.photo_url,
+    photoPositionX: l.photo_position_x,
+    photoPositionY: l.photo_position_y,
     price: l.price,
     size: l.size,
     temperature: l.temperature,

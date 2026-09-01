@@ -10,6 +10,8 @@ export interface LogFormData {
   shopRating: number | null;
   photoFile: File | null;
   photoPreview: string | null;
+  photoPositionX: number;
+  photoPositionY: number;
   removePhoto: boolean;
   caption: string;
   price: string;
@@ -32,6 +34,8 @@ export const INITIAL_LOG_FORM_DATA: LogFormData = {
   shopRating: null,
   photoFile: null,
   photoPreview: null,
+  photoPositionX: 50,
+  photoPositionY: 50,
   removePhoto: false,
   caption: "",
   price: "",

@@ -16,7 +16,6 @@ import { PlacesExplored } from "@/components/passport/places-explored";
 import { evaluatePassportAchievements, getEarnedAchievements } from "@/lib/passport/actions";
 import { getMySaves } from "@/lib/profile/saved-actions";
 import {
-  ACHIEVEMENT_DEFINITIONS,
   computeAchievementProgress,
   computePlacesExplored,
   selectUpNext,
@@ -37,6 +36,8 @@ interface FullLogRow {
   shop_rating: number;
   caption: string | null;
   photo_url: string | null;
+  photo_position_x: number | null;
+  photo_position_y: number | null;
   price: number | null;
   size: string | null;
   temperature: Temperature | null;
@@ -82,7 +83,7 @@ export default async function PassportPage() {
     supabase
       .from("drink_logs")
       .select(
-        "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, logged_at, shop:shops(name,city,state,latitude,longitude), drink:drinks(name)"
+        "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, photo_position_x, photo_position_y, price, size, temperature, created_at, logged_at, shop:shops(name,city,state,latitude,longitude), drink:drinks(name)"
       )
       .eq("user_id", user.id)
       .order("logged_at", { ascending: false })
@@ -117,6 +118,8 @@ export default async function PassportPage() {
     caption: l.caption,
     photoUrl: l.photo_url ? signedUrlByPath.get(l.photo_url) ?? null : null,
     photoPath: l.photo_url,
+    photoPositionX: l.photo_position_x,
+    photoPositionY: l.photo_position_y,
     price: l.price,
     size: l.size,
     temperature: l.temperature,
@@ -317,29 +320,11 @@ export default async function PassportPage() {
       .map((s) => `${s.city!.toLowerCase().trim()}|${s.state!.toLowerCase().trim()}`)
   ).size;
 
-  // LATEST STAMP: the most recently earned achievement, if any, for
-  // the hero's bottom element. Never fabricated, simply omitted when
-  // earnedAchievements is empty.
-  const latestStamp = (() => {
-    let latestKey: string | null = null;
-    let latestDate: string | null = null;
-    earnedAchievements.forEach((earnedAt, key) => {
-      if (!latestDate || earnedAt > latestDate) {
-        latestDate = earnedAt;
-        latestKey = key;
-      }
-    });
-    if (!latestKey || !latestDate) return null;
-    const definition = ACHIEVEMENT_DEFINITIONS.find((d) => d.key === latestKey);
-    if (!definition) return null;
-    return { name: definition.name, earnedAt: latestDate };
-  })();
-
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-clip bg-crema pb-24 sm:pb-10">
       <AuthenticatedHeader active="passport" />
 
-      <main className="container max-w-5xl min-w-0 space-y-8 py-6 sm:space-y-10 sm:py-10">
+      <main className="container max-w-5xl min-w-0 space-y-6 py-6 sm:space-y-8 sm:py-10">
         <PassportHeader
           profile={profile}
           stats={
@@ -354,7 +339,6 @@ export default async function PassportPage() {
               : null
           }
           exploringSinceDate={earliestLoggedAt}
-          latestStamp={latestStamp}
         />
 
         {/*

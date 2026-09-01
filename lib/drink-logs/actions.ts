@@ -39,6 +39,10 @@ function isValidTemperature(t: string | null) {
   return t === null || t === "hot" || t === "iced";
 }
 
+function isValidPosition(n: number | null) {
+  return n === null || (n >= 0 && n <= 100);
+}
+
 function isValidVisibility(v: string) {
   return v === "public" || v === "private";
 }
@@ -255,6 +259,11 @@ export interface CreateDrinkLogInput extends RatableFields {
   shopId: string;
   drinkId: string;
   photoPath: string | null;
+  /** Normalized 0-100 focal position, only meaningful when photoPath
+   *  is set. Null renders as dead center (50/50) on every display
+   *  surface — see LogCardMedia. */
+  photoPositionX: number | null;
+  photoPositionY: number | null;
   /** "YYYY-MM-DD" if backdated, null to use now(). */
   loggedAtDate: string | null;
   /** IANA timezone the date above was picked in, e.g. "America/New_York". */
@@ -291,6 +300,11 @@ export async function createDrinkLog(input: CreateDrinkLogInput) {
   if (validationError) {
     await removePhoto(supabase, photoPath);
     return { error: validationError };
+  }
+
+  if (!isValidPosition(input.photoPositionX) || !isValidPosition(input.photoPositionY)) {
+    await removePhoto(supabase, photoPath);
+    return { error: "Something went wrong with that photo's position. Please try again." };
   }
 
   const { loggedAt, loggedDate, error: dateError } = resolveLoggedAt(input.loggedAtDate, input.timeZone);
@@ -332,6 +346,8 @@ export async function createDrinkLog(input: CreateDrinkLogInput) {
     shop_rating: input.shopRating,
     caption: input.caption,
     photo_url: photoPath,
+    photo_position_x: photoPath ? input.photoPositionX : null,
+    photo_position_y: photoPath ? input.photoPositionY : null,
     price: input.price,
     size: input.size,
     temperature: input.temperature,
@@ -360,6 +376,13 @@ export interface UpdateDrinkLogInput extends RatableFields {
   newPhotoPath: string | null;
   /** True if the user removed the photo without replacing it. */
   removePhoto: boolean;
+  /** Normalized 0-100 focal position. Always reflects the form's
+   *  current value (whether the photo is new, unchanged, or was
+   *  repositioned without a replacement upload) — writing it every
+   *  time a photo exists is simple and idempotent, a no-op when
+   *  nothing actually moved. Null when there's no photo at all. */
+  photoPositionX: number | null;
+  photoPositionY: number | null;
   /** "YYYY-MM-DD", always the prefilled existing value unless the user
    *  changed it, so an unrelated edit never resets logged_at to now. */
   loggedAtDate: string | null;
@@ -420,6 +443,11 @@ export async function updateDrinkLog(logId: string, input: UpdateDrinkLogInput) 
     return { error: validationError };
   }
 
+  if (!isValidPosition(input.photoPositionX) || !isValidPosition(input.photoPositionY)) {
+    await cleanupIfOrphaned();
+    return { error: "Something went wrong with that photo's position. Please try again." };
+  }
+
   const { loggedAt, loggedDate, error: dateError } = resolveLoggedAt(input.loggedAtDate, input.timeZone);
   if (dateError) {
     await cleanupIfOrphaned();
@@ -448,8 +476,19 @@ export async function updateDrinkLog(logId: string, input: UpdateDrinkLogInput) 
 
   if (newPhotoPath) {
     updatePayload.photo_url = newPhotoPath;
+    updatePayload.photo_position_x = input.photoPositionX;
+    updatePayload.photo_position_y = input.photoPositionY;
   } else if (input.removePhoto) {
     updatePayload.photo_url = null;
+    updatePayload.photo_position_x = null;
+    updatePayload.photo_position_y = null;
+  } else if (existingPhotoPath) {
+    // Photo unchanged, but it may have been repositioned without a
+    // replacement upload (PhotoUpload's Reposition path) — always
+    // reflect the form's current position when a photo exists, a
+    // harmless no-op write when nothing actually moved.
+    updatePayload.photo_position_x = input.photoPositionX;
+    updatePayload.photo_position_y = input.photoPositionY;
   }
 
   const { error } = await supabase

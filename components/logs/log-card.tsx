@@ -21,6 +21,8 @@ export interface LogCardData {
   caption: string | null;
   photoUrl: string | null;
   photoPath: string | null;
+  photoPositionX: number | null;
+  photoPositionY: number | null;
   price: number | null;
   size: string | null;
   temperature: "hot" | "iced" | null;
@@ -61,6 +63,8 @@ export function LogCard({ log, onDeleted }: LogCardProps) {
           category: log.beverageCategory,
           temperature: log.temperature,
           photoUrl: log.photoUrl,
+          photoPositionX: log.photoPositionX,
+          photoPositionY: log.photoPositionY,
         }}
       />
 

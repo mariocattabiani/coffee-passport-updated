@@ -9,6 +9,8 @@ export interface PublicLogDetail {
   caption: string | null;
   temperature: "hot" | "iced" | null;
   photoUrl: string | null;
+  photoPositionX: number | null;
+  photoPositionY: number | null;
   drinkId: string;
   drinkName: string;
   category: "coffee" | "tea";
@@ -31,6 +33,8 @@ interface PublicLogRow {
   caption: string | null;
   temperature: "hot" | "iced" | null;
   photo_path: string | null;
+  photo_position_x: number | null;
+  photo_position_y: number | null;
   drink_id: string;
   drink_name: string;
   category: "coffee" | "tea";
@@ -85,6 +89,8 @@ export async function getPublicLog(logId: string): Promise<PublicLogDetail | nul
     caption: row.caption,
     temperature: row.temperature,
     photoUrl,
+    photoPositionX: row.photo_position_x,
+    photoPositionY: row.photo_position_y,
     drinkId: row.drink_id,
     drinkName: row.drink_name,
     category: row.category,

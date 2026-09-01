@@ -20,20 +20,12 @@ interface PassportHeaderProps {
    *  backdated log is added later. Falls back to account creation only
    *  when there's no history at all yet. */
   exploringSinceDate: string | null;
-  /** The most recently earned achievement, if any, anchors the bottom
-   *  of the journey panel. Omitted entirely (not a placeholder) when
-   *  nothing has been earned yet. */
-  latestStamp: { name: string; earnedAt: string } | null;
 }
 
 function yearOf(dateString: string | null | undefined): number | null {
   if (!dateString) return null;
   const year = new Date(dateString).getFullYear();
   return Number.isNaN(year) ? null : year;
-}
-
-function formatMonthYear(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }
 
 function SecondaryStat({ value, label }: { value: number; label: string }) {
@@ -45,22 +37,24 @@ function SecondaryStat({ value, label }: { value: number; label: string }) {
   );
 }
 
-export function PassportHeader({ profile, stats, exploringSinceDate, latestStamp }: PassportHeaderProps) {
+export function PassportHeader({ profile, stats, exploringSinceDate }: PassportHeaderProps) {
   const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ");
   const location = [profile?.city, profile?.state].filter(Boolean).join(", ");
   const exploringSince = yearOf(exploringSinceDate ?? profile?.created_at);
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-white shadow-soft">
-      {/* Oversized, quiet ring motif behind the identity side only. */}
+      {/* Quiet ring motif behind the identity side only, sized down
+          from its original scale so it reads as a subtle texture
+          rather than an empty decorative void. */}
       <div
-        className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full border-[14px] border-espresso/[0.04] sm:h-96 sm:w-96"
+        className="pointer-events-none absolute -left-16 -top-16 h-52 w-52 rounded-full border-[12px] border-espresso/[0.04] sm:h-64 sm:w-64"
         aria-hidden="true"
       />
 
       <div className="relative grid sm:grid-cols-[1.5fr_1fr]">
         {/* IDENTITY */}
-        <div className="p-6 sm:p-10">
+        <div className="p-5 sm:p-7">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-center gap-4 sm:flex-col sm:items-start sm:gap-5">
               <div className="relative shrink-0">
@@ -89,7 +83,7 @@ export function PassportHeader({ profile, stats, exploringSinceDate, latestStamp
                   </p>
                 )}
                 {fullName && (
-                  <h1 className="mt-1 truncate font-heading text-2xl font-semibold text-espresso sm:text-4xl">
+                  <h1 className="mt-1 truncate font-heading text-2xl font-semibold text-espresso sm:text-3xl">
                     {fullName}
                   </h1>
                 )}
@@ -132,52 +126,44 @@ export function PassportHeader({ profile, stats, exploringSinceDate, latestStamp
           </div>
 
           {profile?.bio && (
-            <p className="mt-5 max-w-md text-sm italic text-charcoal/60">&ldquo;{profile.bio}&rdquo;</p>
+            <p className="mt-4 max-w-md text-sm italic text-charcoal/60">&ldquo;{profile.bio}&rdquo;</p>
           )}
         </div>
 
-        {/* PROGRESS, composed rather than four equal-weight tiles */}
+        {/* PROGRESS, composed rather than four equal-weight tiles.
+            The "Latest stamp" panel that used to anchor the bottom of
+            this block was removed: the redesigned Stamps rail below
+            now surfaces the most recent stamp first with its own
+            "New" indicator, so showing it a second time here was
+            duplicate messaging and unused vertical space, not a
+            second useful signal. */}
         {stats && (
-          <div className="relative flex flex-col justify-between bg-espresso p-6 sm:p-8">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-crema/50">
-                Your coffee journey
+          <div className="relative flex flex-col justify-center bg-espresso p-5 sm:p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-crema/50">
+              Your coffee journey
+            </p>
+
+            {/* PRIMARY: drinks logged is the anchor metric, given real
+                scale rather than sharing equal weight with the rest. */}
+            <div className="mt-2">
+              <p className="font-heading text-4xl font-semibold leading-none text-crema sm:text-5xl">
+                {stats.drinksLogged}
               </p>
-
-              {/* PRIMARY: drinks logged is the anchor metric, given real
-                  scale rather than sharing equal weight with the rest. */}
-              <div className="mt-3">
-                <p className="font-heading text-5xl font-semibold leading-none text-crema sm:text-6xl">
-                  {stats.drinksLogged}
-                </p>
-                <p className="mt-2 text-xs uppercase tracking-wide text-crema/50">Drinks logged</p>
-                {stats.teasLogged > 0 && (
-                  <p className="mt-1 text-xs font-medium text-latte">+{stats.teasLogged} teas</p>
-                )}
-              </div>
-
-              {/* SECONDARY ROW, smaller scale, separated by thin rules
-                  rather than repeating the primary metric's treatment. */}
-              <div className="mt-6 flex items-start gap-5 border-t border-crema/10 pt-5">
-                <SecondaryStat value={stats.cafesExplored} label="Cafés" />
-                <div className="h-8 w-px bg-crema/15" aria-hidden="true" />
-                <SecondaryStat value={stats.citiesExplored} label="Cities" />
-                <div className="h-8 w-px bg-crema/15" aria-hidden="true" />
-                <SecondaryStat value={stats.stampsEarned} label="Stamps" />
-              </div>
+              <p className="mt-1.5 text-xs uppercase tracking-wide text-crema/50">Drinks logged</p>
+              {stats.teasLogged > 0 && (
+                <p className="mt-1 text-xs font-medium text-latte">+{stats.teasLogged} teas</p>
+              )}
             </div>
 
-            {/* LATEST STAMP anchors the bottom of the panel when
-                something has actually been earned, omitted entirely,
-                not a placeholder, otherwise, the panel simply
-                rebalances around the content above. */}
-            {latestStamp && (
-              <div className="mt-6 border-t border-crema/10 pt-5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gold">Latest stamp</p>
-                <p className="mt-1 font-heading text-base font-semibold text-crema">{latestStamp.name}</p>
-                <p className="text-xs text-crema/50">{formatMonthYear(latestStamp.earnedAt)}</p>
-              </div>
-            )}
+            {/* SECONDARY ROW, smaller scale, separated by thin rules
+                rather than repeating the primary metric's treatment. */}
+            <div className="mt-4 flex items-start gap-5 border-t border-crema/10 pt-4">
+              <SecondaryStat value={stats.cafesExplored} label="Cafés" />
+              <div className="h-8 w-px bg-crema/15" aria-hidden="true" />
+              <SecondaryStat value={stats.citiesExplored} label="Cities" />
+              <div className="h-8 w-px bg-crema/15" aria-hidden="true" />
+              <SecondaryStat value={stats.stampsEarned} label="Stamps" />
+            </div>
           </div>
         )}
       </div>

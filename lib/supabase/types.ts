@@ -64,6 +64,12 @@ export interface DrinkLog {
   caption: string | null;
   // Storage object path (bucket is private), not a public URL.
   photo_url: string | null;
+  // Normalized 0-100 focal position for object-position on every
+  // display surface. Null on any log created before this column
+  // existed, or one whose photo was never given an explicit position
+  // — every reading surface treats null as 50/50 (dead center).
+  photo_position_x: number | null;
+  photo_position_y: number | null;
   price: number | null;
   size: string | null;
   temperature: Temperature | null;

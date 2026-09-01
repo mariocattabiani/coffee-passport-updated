@@ -1,5 +1,4 @@
-import { MapPin } from "lucide-react";
-
+import { CafeThumbnailPlaceholder } from "@/components/explore/cafe-thumbnail-placeholder";
 import type { ExternalCafeResult } from "@/lib/explore/nearby-search-actions";
 
 interface ExternalResultCardProps {
@@ -28,9 +27,7 @@ export function ExternalResultCard({ item, distanceMiles, selected, opening, onO
         selected ? "border-espresso bg-crema/50 shadow-card" : "border-charcoal/25 bg-white/70"
       }`}
     >
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-charcoal/5">
-        <MapPin className="h-5 w-5 text-charcoal/30" aria-hidden="true" />
-      </div>
+      <CafeThumbnailPlaceholder name={item.name} size="md" />
 
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-charcoal">{item.name}</p>

@@ -14,6 +14,8 @@ export interface LogCardBodyData {
   category: "coffee" | "tea";
   temperature: "hot" | "iced" | null;
   photoUrl: string | null;
+  photoPositionX?: number | null;
+  photoPositionY?: number | null;
 }
 
 interface LogCardBodyProps {
@@ -48,7 +50,12 @@ interface LogCardBodyProps {
 export function LogCardBody({ data, compactRatingOnMobile = false }: LogCardBodyProps) {
   return (
     <>
-      <LogCardMedia photoUrl={data.photoUrl} alt={`${data.drinkName} at ${data.shopName}`} />
+      <LogCardMedia
+        photoUrl={data.photoUrl}
+        alt={`${data.drinkName} at ${data.shopName}`}
+        positionX={data.photoPositionX}
+        positionY={data.photoPositionY}
+      />
 
       <div className="min-w-0 px-4 py-3">
         <div className="flex min-w-0 items-start justify-between gap-2">

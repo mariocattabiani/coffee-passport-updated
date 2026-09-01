@@ -28,6 +28,8 @@ interface RecentLogRow {
   shop_rating: number;
   caption: string | null;
   photo_url: string | null;
+  photo_position_x: number | null;
+  photo_position_y: number | null;
   price: number | null;
   size: string | null;
   temperature: Temperature | null;
@@ -107,7 +109,7 @@ export default async function DashboardPage() {
   const { data: recentRows } = await supabase
     .from("drink_logs")
     .select(
-      "id, shop_id, beverage_category, drink_rating, shop_rating, caption, photo_url, price, size, temperature, created_at, logged_at, shop:shops(name), drink:drinks(name)"
+      "id, shop_id, beverage_category, drink_rating, shop_rating, caption, photo_url, photo_position_x, photo_position_y, price, size, temperature, created_at, logged_at, shop:shops(name), drink:drinks(name)"
     )
     .eq("user_id", user.id)
     .order("logged_at", { ascending: false })
@@ -141,6 +143,8 @@ export default async function DashboardPage() {
     caption: r.caption,
     photoUrl: r.photo_url ? signedUrlByPath.get(r.photo_url) ?? null : null,
     photoPath: r.photo_url,
+    photoPositionX: r.photo_position_x,
+    photoPositionY: r.photo_position_y,
     price: r.price,
     size: r.size,
     temperature: r.temperature,

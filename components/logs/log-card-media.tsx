@@ -7,6 +7,14 @@ import { PhotoLightbox } from "@/components/logs/photo-lightbox";
 interface LogCardMediaProps {
   photoUrl: string | null;
   alt: string;
+  /** Normalized 0-100 focal position, applied as CSS object-position
+   *  so every display shape (mobile's fixed height, desktop's
+   *  aspect-[4/3]) crops around the same user-chosen subject instead
+   *  of each ratio independently center-cropping the photo. Null
+   *  (never customized, or a log from before this existed) renders as
+   *  50/50 — dead center, pixel-identical to the old behavior. */
+  positionX?: number | null;
+  positionY?: number | null;
 }
 
 /**
@@ -18,14 +26,19 @@ interface LogCardMediaProps {
  * an inconsistent, often very letterboxed crop — a 490px-wide photo
  * at a flat 220px tall is over 2:1, distinctly panoramic regardless of
  * the source photo's own composition. aspect-[4/3] scales sensibly
- * with whatever column width it lands in instead. This is presentation
- * only either way, the stored source image is never altered or
- * cropped, the full original always opens in the lightbox.
+ * with whatever column width it lands in instead.
+ *
+ * The stored source image itself is never altered or cropped by this
+ * component — object-position only shifts which part of the full
+ * image is visible within whatever frame this renders at, the full
+ * original always opens in the lightbox regardless of position.
  */
-export function LogCardMedia({ photoUrl, alt }: LogCardMediaProps) {
+export function LogCardMedia({ photoUrl, alt, positionX, positionY }: LogCardMediaProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   if (!photoUrl) return null;
+
+  const objectPosition = `${positionX ?? 50}% ${positionY ?? 50}%`;
 
   return (
     <>
@@ -40,6 +53,7 @@ export function LogCardMedia({ photoUrl, alt }: LogCardMediaProps) {
           src={photoUrl}
           alt={alt}
           className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+          style={{ objectPosition }}
         />
       </button>
       {lightboxOpen && <PhotoLightbox src={photoUrl} alt={alt} onClose={() => setLightboxOpen(false)} />}

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Users, Coffee } from "lucide-react";
+import { Users } from "lucide-react";
 
 import { StarDisplay } from "@/components/logs/star-display";
+import { CafeThumbnailPlaceholder } from "@/components/explore/cafe-thumbnail-placeholder";
 import type { DiscoveryResult } from "@/lib/explore/actions";
 
 interface ResultCardProps {
@@ -34,9 +35,7 @@ export function ResultCard({ item, distanceMiles, selected }: ResultCardProps) {
           <img src={item.photoUrl} alt="" className="h-full w-full object-cover" />
         </div>
       ) : (
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-espresso/5">
-          <Coffee className="h-5 w-5 text-espresso/30" aria-hidden="true" />
-        </div>
+        <CafeThumbnailPlaceholder name={item.name} size="md" />
       )}
 
       <div className="min-w-0 flex-1">

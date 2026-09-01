@@ -12,6 +12,8 @@ export interface FeedItem {
   caption: string | null;
   temperature: "hot" | "iced" | null;
   photoUrl: string | null;
+  photoPositionX: number | null;
+  photoPositionY: number | null;
   drinkId: string;
   drinkName: string;
   category: "coffee" | "tea";
@@ -129,6 +131,8 @@ export function FeedCard({ item, currentUserId }: FeedCardProps) {
           category: item.category,
           temperature: item.temperature,
           photoUrl: item.photoUrl,
+          photoPositionX: item.photoPositionX,
+          photoPositionY: item.photoPositionY,
         }}
       />
 

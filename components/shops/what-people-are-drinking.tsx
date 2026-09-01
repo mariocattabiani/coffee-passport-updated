@@ -10,6 +10,8 @@ export interface ShopActivityItem {
   caption: string | null;
   temperature: "hot" | "iced" | null;
   photoUrl: string | null;
+  photoPositionX: number | null;
+  photoPositionY: number | null;
   drinkName: string;
   category: "coffee" | "tea";
   username: string | null;
@@ -59,7 +61,12 @@ export function WhatPeopleAreDrinking({ items }: WhatPeopleAreDrinkingProps) {
               {item.photoUrl ? (
                 <div className="relative aspect-square w-full bg-charcoal/5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.photoUrl} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={item.photoUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    style={{ objectPosition: `${item.photoPositionX ?? 50}% ${item.photoPositionY ?? 50}%` }}
+                  />
                 </div>
               ) : (
                 <div className="flex aspect-square w-full items-center justify-center bg-espresso/5">
