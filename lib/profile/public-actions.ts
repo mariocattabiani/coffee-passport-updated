@@ -76,9 +76,13 @@ interface UserActivityRow {
   category: "coffee" | "tea";
   shop_id: string;
   shop_name: string;
+  shop_city: string | null;
+  shop_state: string | null;
+  owner_user_id: string;
   like_count: number;
   viewer_has_liked: boolean;
   viewer_has_saved: boolean;
+  comment_count: number;
 }
 
 export interface UserActivityPageResult {
@@ -99,13 +103,18 @@ export async function getPublicUserActivityPage(
 ): Promise<UserActivityPageResult> {
   const supabase = await createClient();
 
-  const { data } = await supabase.rpc("get_public_user_activity", {
+  const { data, error } = await supabase.rpc("get_public_user_activity", {
     target_username: username,
     cursor_logged_at: cursor?.loggedAt ?? null,
     cursor_created_at: cursor?.createdAt ?? null,
     cursor_id: cursor?.id ?? null,
     page_size: PAGE_SIZE,
   });
+
+  if (error) {
+    console.error("get_public_user_activity failed:", error.message);
+    throw new Error("Unable to load this profile's coffees right now.");
+  }
 
   const results = (data ?? []) as UserActivityRow[];
 
@@ -132,12 +141,16 @@ export async function getPublicUserActivityPage(
     category: r.category,
     shopId: r.shop_id,
     shopName: r.shop_name,
+    shopCity: r.shop_city,
+    shopState: r.shop_state,
+    ownerUserId: r.owner_user_id,
     username: identity.username,
     firstName: identity.firstName,
     avatarUrl: identity.avatarUrl,
     likeCount: r.like_count,
     viewerHasLiked: r.viewer_has_liked,
     viewerHasSaved: r.viewer_has_saved,
+    commentCount: r.comment_count,
   }));
 
   const last = results[results.length - 1];

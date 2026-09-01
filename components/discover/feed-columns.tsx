@@ -7,6 +7,7 @@ import { distributeIntoColumns } from "@/lib/drink-logs/masonry";
 
 interface FeedColumnsProps {
   items: FeedItem[];
+  currentUserId: string;
 }
 
 // Same breakpoints and hydration-safe approach already proven in
@@ -24,7 +25,7 @@ function resolveColumnCount(): number {
   return 1;
 }
 
-export function FeedColumns({ items }: FeedColumnsProps) {
+export function FeedColumns({ items, currentUserId }: FeedColumnsProps) {
   const [columnCount, setColumnCount] = useState(1);
 
   useEffect(() => {
@@ -48,11 +49,14 @@ export function FeedColumns({ items }: FeedColumnsProps) {
   const columns = distributeIntoColumns(items, columnCount);
 
   return (
-    <div className="flex min-w-0 gap-3">
+    <div className="flex min-w-0 gap-0 sm:gap-3">
       {columns.map((column, i) => (
-        <div key={i} className="flex min-w-0 flex-1 flex-col gap-3">
+        <div
+          key={i}
+          className="flex min-w-0 flex-1 flex-col divide-y divide-border/60 sm:gap-3 sm:divide-y-0"
+        >
           {column.map((item) => (
-            <FeedCard key={item.logId} item={item} />
+            <FeedCard key={item.logId} item={item} currentUserId={currentUserId} />
           ))}
         </div>
       ))}

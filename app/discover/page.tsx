@@ -29,7 +29,7 @@ export default async function DiscoverPage() {
     <div className="min-h-screen w-full max-w-full overflow-x-clip bg-crema pb-24 sm:pb-10">
       <AuthenticatedHeader active="discover" />
 
-      <main className="container max-w-5xl min-w-0 space-y-6 py-6 sm:py-10">
+      <main className="mx-auto w-full max-w-5xl min-w-0 space-y-5 px-4 py-5 sm:space-y-6 sm:px-6 sm:py-10">
         <div className="flex min-w-0 items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="font-heading text-2xl font-semibold text-espresso sm:text-3xl">Discover</h1>
@@ -66,7 +66,7 @@ export default async function DiscoverPage() {
           </div>
         </div>
 
-        <DiscoverFeed initialItems={items} initialCursor={nextCursor} />
+        <DiscoverFeed initialItems={items} initialCursor={nextCursor} currentUserId={user.id} />
       </main>
     </div>
   );

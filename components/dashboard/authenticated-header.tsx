@@ -3,6 +3,7 @@ import { Coffee, Compass, IdCard, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/dashboard/logout-button";
+import { NotificationBell } from "@/components/dashboard/notification-bell";
 import { createClient } from "@/lib/supabase/server";
 
 interface AuthenticatedHeaderProps {
@@ -35,46 +36,50 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
             <span className="font-heading text-lg font-semibold text-espresso">Coffee Passport</span>
           </Link>
 
-          <nav aria-label="Primary" className="hidden items-center gap-1 sm:flex">
-            <Button asChild variant={active === "dashboard" ? "secondary" : "ghost"} size="sm">
-              <Link href="/dashboard" aria-current={active === "dashboard" ? "page" : undefined}>
-                Dashboard
-              </Link>
-            </Button>
-            <Button asChild variant={active === "explore" ? "secondary" : "ghost"} size="sm">
-              <Link href="/explore" aria-current={active === "explore" ? "page" : undefined}>
-                Explore
-              </Link>
-            </Button>
-            <Button asChild variant={active === "discover" ? "secondary" : "ghost"} size="sm">
-              <Link href="/discover" aria-current={active === "discover" ? "page" : undefined}>
-                Discover
-              </Link>
-            </Button>
-            <Button asChild variant={active === "friends" ? "secondary" : "ghost"} size="sm" className="relative">
-              <Link href="/friends" aria-current={active === "friends" ? "page" : undefined}>
-                Friends
-                {hasPending && (
-                  <span
-                    className="absolute -right-0.5 -top-0.5 flex h-2 w-2 rounded-full bg-sage"
-                    aria-hidden="true"
-                  />
-                )}
-              </Link>
-            </Button>
-            <Button asChild variant={active === "passport" ? "secondary" : "ghost"} size="sm">
-              <Link href="/passport" aria-current={active === "passport" ? "page" : undefined}>
-                Passport
-              </Link>
-            </Button>
-            <Button asChild size="sm" className="ml-2 gap-1.5">
-              <Link href="/log">
-                <Plus className="h-3.5 w-3.5" />
-                Log Coffee
-              </Link>
-            </Button>
-            <LogoutButton />
-          </nav>
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+
+            <nav aria-label="Primary" className="hidden items-center gap-1 sm:flex">
+              <Button asChild variant={active === "dashboard" ? "secondary" : "ghost"} size="sm">
+                <Link href="/dashboard" aria-current={active === "dashboard" ? "page" : undefined}>
+                  Dashboard
+                </Link>
+              </Button>
+              <Button asChild variant={active === "explore" ? "secondary" : "ghost"} size="sm">
+                <Link href="/explore" aria-current={active === "explore" ? "page" : undefined}>
+                  Explore
+                </Link>
+              </Button>
+              <Button asChild variant={active === "discover" ? "secondary" : "ghost"} size="sm">
+                <Link href="/discover" aria-current={active === "discover" ? "page" : undefined}>
+                  Discover
+                </Link>
+              </Button>
+              <Button asChild variant={active === "friends" ? "secondary" : "ghost"} size="sm" className="relative">
+                <Link href="/friends" aria-current={active === "friends" ? "page" : undefined}>
+                  Friends
+                  {hasPending && (
+                    <span
+                      className="absolute -right-0.5 -top-0.5 flex h-2 w-2 rounded-full bg-sage"
+                      aria-hidden="true"
+                    />
+                  )}
+                </Link>
+              </Button>
+              <Button asChild variant={active === "passport" ? "secondary" : "ghost"} size="sm">
+                <Link href="/passport" aria-current={active === "passport" ? "page" : undefined}>
+                  Passport
+                </Link>
+              </Button>
+              <Button asChild size="sm" className="ml-2 gap-1.5">
+                <Link href="/log">
+                  <Plus className="h-3.5 w-3.5" />
+                  Log Coffee
+                </Link>
+              </Button>
+              <LogoutButton />
+            </nav>
+          </div>
         </div>
       </header>
 
@@ -83,10 +88,17 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
           Passport. Friends is deliberately not a sixth tab here, it's
           reachable from Discover's own header on mobile instead.
           Logout lives on the Passport page. Padded for the device's
-          safe area so it never sits under a phone's home indicator. */}
+          safe area so it never sits under a phone's home indicator.
+
+          bg-crema/95 (not white/95): the nav surface now matches the
+          page's own background tone instead of sitting as a visibly
+          different white plate at the very bottom edge — one
+          continuous surface with a soft top border and blur, reading
+          as an anchored native tab bar rather than a card stacked on
+          top of the page. */}
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-border bg-white/95 backdrop-blur sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-border/80 bg-crema/95 backdrop-blur sm:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <Link
@@ -96,7 +108,7 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
             active === "dashboard" ? "text-espresso" : "text-charcoal/40"
           }`}
         >
-          <Coffee className="h-5 w-5" />
+          <Coffee className="h-5 w-5" strokeWidth={active === "dashboard" ? 2.5 : 2} />
           Dashboard
         </Link>
         <Link
@@ -106,7 +118,7 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
             active === "explore" ? "text-espresso" : "text-charcoal/40"
           }`}
         >
-          <Compass className="h-5 w-5" />
+          <Compass className="h-5 w-5" strokeWidth={active === "explore" ? 2.5 : 2} />
           Explore
         </Link>
         <Link href="/log" className="flex flex-1 flex-col items-center gap-1 py-1.5" aria-label="Log a coffee">
@@ -123,7 +135,10 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
           }`}
         >
           <span className="relative">
-            <Compass className="h-5 w-5" />
+            <Compass
+              className="h-5 w-5"
+              strokeWidth={active === "discover" || active === "friends" ? 2.5 : 2}
+            />
             {hasPending && (
               <span
                 className="absolute -right-0.5 -top-0.5 flex h-2 w-2 rounded-full bg-sage"
@@ -140,7 +155,7 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
             active === "passport" ? "text-espresso" : "text-charcoal/40"
           }`}
         >
-          <IdCard className="h-5 w-5" />
+          <IdCard className="h-5 w-5" strokeWidth={active === "passport" ? 2.5 : 2} />
           Passport
         </Link>
       </nav>

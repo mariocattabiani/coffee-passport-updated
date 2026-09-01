@@ -12,6 +12,7 @@ import type { FeedItem } from "@/components/discover/feed-card";
 interface DiscoverFeedProps {
   initialItems: FeedItem[];
   initialCursor: FeedCursor | null;
+  currentUserId: string;
 }
 
 type Tab = "for-you" | "friends";
@@ -26,7 +27,7 @@ type Tab = "for-you" | "friends";
  * same 3-key cursor, and the same short-lived signed URLs, this is not
  * a second feed architecture.
  */
-export function DiscoverFeed({ initialItems, initialCursor }: DiscoverFeedProps) {
+export function DiscoverFeed({ initialItems, initialCursor, currentUserId }: DiscoverFeedProps) {
   const [tab, setTab] = useState<Tab>("for-you");
 
   const [forYouItems, setForYouItems] = useState(initialItems);
@@ -114,7 +115,7 @@ export function DiscoverFeed({ initialItems, initialCursor }: DiscoverFeedProps)
         )
       ) : (
         <>
-          <FeedColumns items={items} />
+          <FeedColumns items={items} currentUserId={currentUserId} />
           {cursor && (
             <div className="mt-6 flex justify-center">
               <Button variant="outline" onClick={handleLoadMore} disabled={loadingMore} className="gap-2">

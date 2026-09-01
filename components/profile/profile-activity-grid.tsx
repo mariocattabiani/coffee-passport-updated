@@ -2,6 +2,7 @@ import { FeedCard, type FeedItem } from "@/components/discover/feed-card";
 
 interface ProfileActivityGridProps {
   items: FeedItem[];
+  currentUserId: string;
 }
 
 /**
@@ -25,11 +26,11 @@ interface ProfileActivityGridProps {
  * Discover uses, only the containing layout differs, exactly as
  * intended: one shared card, two different feed layouts.
  */
-export function ProfileActivityGrid({ items }: ProfileActivityGridProps) {
+export function ProfileActivityGrid({ items, currentUserId }: ProfileActivityGridProps) {
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 divide-y divide-border/60 sm:gap-4 sm:divide-y-0 lg:grid-cols-2">
       {items.map((item) => (
-        <FeedCard key={item.logId} item={item} />
+        <FeedCard key={item.logId} item={item} currentUserId={currentUserId} />
       ))}
     </div>
   );

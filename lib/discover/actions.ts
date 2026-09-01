@@ -42,12 +42,16 @@ interface PublicFeedRow {
   category: "coffee" | "tea";
   shop_id: string;
   shop_name: string;
+  shop_city: string | null;
+  shop_state: string | null;
+  owner_user_id: string;
   username: string | null;
   first_name: string | null;
   avatar_url: string | null;
   like_count: number;
   viewer_has_liked: boolean;
   viewer_has_saved: boolean;
+  comment_count: number;
 }
 
 function mapFeedRow(r: PublicFeedRow, signedUrlByPath: Map<string, string>): FeedItem {
@@ -63,12 +67,16 @@ function mapFeedRow(r: PublicFeedRow, signedUrlByPath: Map<string, string>): Fee
     category: r.category,
     shopId: r.shop_id,
     shopName: r.shop_name,
+    shopCity: r.shop_city,
+    shopState: r.shop_state,
+    ownerUserId: r.owner_user_id,
     username: r.username,
     firstName: r.first_name,
     avatarUrl: r.avatar_url,
     likeCount: r.like_count,
     viewerHasLiked: r.viewer_has_liked,
     viewerHasSaved: r.viewer_has_saved,
+    commentCount: r.comment_count,
   };
 }
 
@@ -95,18 +103,24 @@ async function signPhotoPaths(
  * page. Every field returned here already passed through
  * get_public_feed's own approved-columns list, this function never
  * touches drink_logs directly. like_count/viewer_has_liked/
- * viewer_has_saved arrive in the same round trip, computed via LATERAL
- * joins inside the RPC itself, never a follow-up per-card query.
+ * viewer_has_saved/comment_count all arrive in the same round trip,
+ * computed via LATERAL joins inside the RPC itself, never a follow-up
+ * per-card query.
  */
 export async function getPublicFeedPage(cursor: FeedCursor | null): Promise<FeedPageResult> {
   const supabase = await createClient();
 
-  const { data } = await supabase.rpc("get_public_feed", {
+  const { data, error } = await supabase.rpc("get_public_feed", {
     cursor_logged_at: cursor?.loggedAt ?? null,
     cursor_created_at: cursor?.createdAt ?? null,
     cursor_id: cursor?.id ?? null,
     page_size: PAGE_SIZE,
   });
+
+  if (error) {
+    console.error("get_public_feed failed:", error.message);
+    throw new Error("Unable to load Discover right now.");
+  }
 
   const results = (data ?? []) as PublicFeedRow[];
   const signedUrlByPath = await signPhotoPaths(supabase, results);
@@ -132,12 +146,17 @@ export async function getPublicFeedPage(cursor: FeedCursor | null): Promise<Feed
 export async function getFriendsFeedPage(cursor: FeedCursor | null): Promise<FeedPageResult> {
   const supabase = await createClient();
 
-  const { data } = await supabase.rpc("get_friends_feed", {
+  const { data, error } = await supabase.rpc("get_friends_feed", {
     cursor_logged_at: cursor?.loggedAt ?? null,
     cursor_created_at: cursor?.createdAt ?? null,
     cursor_id: cursor?.id ?? null,
     page_size: PAGE_SIZE,
   });
+
+  if (error) {
+    console.error("get_friends_feed failed:", error.message);
+    throw new Error("Unable to load your friends' coffees right now.");
+  }
 
   const results = (data ?? []) as PublicFeedRow[];
   const signedUrlByPath = await signPhotoPaths(supabase, results);

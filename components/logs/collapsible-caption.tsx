@@ -6,11 +6,11 @@ interface CollapsibleCaptionProps {
   text: string;
 }
 
-// Rough heuristic for "would this wrap past 2 lines at typical card
+// Rough heuristic for "would this wrap past 3 lines at typical card
 // width". Short captions render plainly with no reserved space for a
 // toggle that would never be needed; only genuinely long captions pay
 // for the collapse/expand affordance.
-const COLLAPSE_THRESHOLD = 110;
+const COLLAPSE_THRESHOLD = 165;
 
 export function CollapsibleCaption({ text }: CollapsibleCaptionProps) {
   const [expanded, setExpanded] = useState(false);
@@ -22,7 +22,7 @@ export function CollapsibleCaption({ text }: CollapsibleCaptionProps) {
 
   return (
     <div className="mt-2 min-w-0 break-words text-sm text-charcoal/70">
-      <p className={expanded ? "" : "line-clamp-2"}>{text}</p>
+      <p className={expanded ? "" : "line-clamp-3"}>{text}</p>
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}

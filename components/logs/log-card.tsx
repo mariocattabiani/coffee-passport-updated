@@ -51,6 +51,7 @@ export function LogCard({ log, onDeleted }: LogCardProps) {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-white shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card">
       <LogCardBody
+        compactRatingOnMobile={false}
         data={{
           drinkName: log.drinkName,
           drinkRating: log.drinkRating,

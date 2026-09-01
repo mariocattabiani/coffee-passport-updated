@@ -14,11 +14,12 @@ interface PublicActivityProps {
   identity: { username: string; firstName: string | null; avatarUrl: string | null };
   initialItems: FeedItem[];
   initialCursor: FeedCursor | null;
+  currentUserId: string;
 }
 
 /** Uses ProfileActivityGrid, a profile-specific 1/2-column grid, not
  *  Discover's viewport-driven FeedColumns — see that component for why. */
-export function PublicActivity({ username, identity, initialItems, initialCursor }: PublicActivityProps) {
+export function PublicActivity({ username, identity, initialItems, initialCursor, currentUserId }: PublicActivityProps) {
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState(initialCursor);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -42,7 +43,7 @@ export function PublicActivity({ username, identity, initialItems, initialCursor
 
   return (
     <div>
-      <ProfileActivityGrid items={items} />
+      <ProfileActivityGrid items={items} currentUserId={currentUserId} />
       {cursor && (
         <div className="mt-6 flex justify-center">
           <Button variant="outline" onClick={handleLoadMore} disabled={loadingMore} className="gap-2">

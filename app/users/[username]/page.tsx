@@ -110,6 +110,7 @@ export default async function UserProfilePage({ params }: UserPageProps) {
                     identity={identity}
                     initialItems={items}
                     initialCursor={nextCursor}
+                    currentUserId={user.id}
                   />
                 }
                 savedContent={<SavedList initialItems={savedItems} />}
@@ -122,6 +123,7 @@ export default async function UserProfilePage({ params }: UserPageProps) {
                   identity={identity}
                   initialItems={items}
                   initialCursor={nextCursor}
+                  currentUserId={user.id}
                 />
               </>
             )}

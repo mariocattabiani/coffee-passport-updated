@@ -16,6 +16,20 @@ export interface LogCardBodyData {
   photoUrl: string | null;
 }
 
+interface LogCardBodyProps {
+  data: LogCardBodyData;
+  /** Compact `★ 4.5` below `sm`, full 5-star row from `sm` up. Neutral
+   *  default (off): LogCardBody itself makes no assumption about
+   *  which surface is rendering it, since it's shared by both the
+   *  public social feed (FeedCard) and the owner's own private
+   *  Passport Coffee Trail (LogCard) — two different products with
+   *  different needs, not one feed with two entry points. Callers
+   *  that actually want the fast-scan social treatment (FeedCard) opt
+   *  in explicitly; Passport's own LogCard deliberately does not, and
+   *  keeps its pre-existing full-star presentation unchanged. */
+  compactRatingOnMobile?: boolean;
+}
+
 /**
  * The one shared social-log presentation used by both Discover/public
  * profiles (FeedCard) and the owner's own logs (LogCard). This is
@@ -25,13 +39,18 @@ export interface LogCardBodyData {
  * the one meaningfully different piece between "someone else's public
  * post" and "my own log", everything else about how a coffee log
  * looks is now a single implementation, not two drifting copies.
+ *
+ * One consistent px-4 horizontal rhythm throughout (header, this body,
+ * the action row below all agree) — previously header used px-3 and
+ * this body used px-3.5, two slightly different insets on the same
+ * post that read as unintentional rather than designed.
  */
-export function LogCardBody({ data }: { data: LogCardBodyData }) {
+export function LogCardBody({ data, compactRatingOnMobile = false }: LogCardBodyProps) {
   return (
     <>
       <LogCardMedia photoUrl={data.photoUrl} alt={`${data.drinkName} at ${data.shopName}`} />
 
-      <div className="min-w-0 px-3.5 py-2.5">
+      <div className="min-w-0 px-4 py-3">
         <div className="flex min-w-0 items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate font-medium text-charcoal">{data.drinkName}</p>
@@ -44,7 +63,12 @@ export function LogCardBody({ data }: { data: LogCardBodyData }) {
             </Link>
           </div>
           <div className="shrink-0">
-            <StarDisplay rating={data.drinkRating} size="h-3 w-3" showValue />
+            <StarDisplay
+              rating={data.drinkRating}
+              size="h-3 w-3"
+              showValue
+              compactOnMobile={compactRatingOnMobile}
+            />
           </div>
         </div>
 
