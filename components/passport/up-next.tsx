@@ -2,11 +2,20 @@ import type { AchievementProgress } from "@/lib/passport/achievements";
 import { formatRemainingPhrase } from "@/lib/passport/achievements";
 
 /**
- * Adapts to how many goals exist rather than always assuming three.
- * One goal becomes a wide featured moment instead of a small card
- * surrounded by empty space, two goals split evenly, three keeps the
- * original three-column layout. Mobile always stacks to one column
- * regardless of count.
+ * Compact by design: heading, progress line, bar, remaining-amount
+ * line — no outer card. The old treatment wrapped this in a
+ * `rounded-2xl border ... p-6 sm:p-8` card that made a single small
+ * fact (progress toward one stamp) occupy as much vertical space as
+ * an entire feature. This version aims for roughly 80-120px total on
+ * mobile for the single-goal case, per the target.
+ *
+ * "Your next stamp is getting close" was dropped entirely rather than
+ * kept conditionally — at this compact size it read as filler under
+ * a progress bar that already says the same thing more precisely.
+ *
+ * Still adapts to goal count the same way as before: one goal reads as
+ * a single compact block, two/three lay out side by side on `sm`+ and
+ * stack on mobile.
  */
 export function UpNext({ goals }: { goals: AchievementProgress[] }) {
   if (goals.length === 0) return null;
@@ -16,40 +25,33 @@ export function UpNext({ goals }: { goals: AchievementProgress[] }) {
     const remaining = goal.definition.threshold - goal.progress;
 
     return (
-      <section>
-        <h2 className="mb-4 font-heading text-xl font-semibold text-espresso">Up Next</h2>
-        <div className="rounded-2xl border border-border bg-white p-6 shadow-soft sm:p-8">
-          <p className="font-heading text-2xl font-semibold text-espresso sm:text-3xl">
-            {goal.definition.name}
-          </p>
-          <p className="mt-1 text-sm text-charcoal/60">{goal.definition.description}</p>
+      <section className="border-t border-border/60 pt-6">
+        <h2 className="mb-2 font-heading text-lg font-semibold text-espresso">Up Next</h2>
 
-          <div className="mt-6">
-            <p className="font-heading text-lg font-semibold text-espresso">
-              {goal.progress} OF {goal.definition.threshold} {goal.definition.progressUnitPlural.toUpperCase()}
-            </p>
-            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-border" aria-hidden="true">
-              <div className="h-full rounded-full bg-sage" style={{ width: `${goal.percent}%` }} />
-            </div>
-            {remaining > 0 && (
-              <p className="mt-2 text-sm font-medium text-charcoal/60">
-                {formatRemainingPhrase(
-                  remaining,
-                  goal.definition.progressUnitSingular,
-                  goal.definition.progressUnitPlural,
-                  "to go"
-                )}
-              </p>
-            )}
+        <div className="flex min-w-0 items-baseline justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate font-medium text-charcoal">{goal.definition.name}</p>
+            <p className="truncate text-xs text-charcoal/50">{goal.definition.description}</p>
           </div>
-
-          {/* Only shown when actually meaningfully close, never a
-              blanket line that could read as misleading for a distant
-              goal like an early Coffee 100. */}
-          {goal.percent >= 50 && (
-            <p className="mt-4 text-xs italic text-charcoal/40">Your next stamp is getting close.</p>
-          )}
+          <p className="shrink-0 font-heading text-base font-semibold text-espresso">
+            {goal.progress} / {goal.definition.threshold}
+          </p>
         </div>
+
+        <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-border" aria-hidden="true">
+          <div className="h-full rounded-full bg-sage" style={{ width: `${goal.percent}%` }} />
+        </div>
+
+        {remaining > 0 && (
+          <p className="mt-1.5 text-xs font-medium text-charcoal/50">
+            {formatRemainingPhrase(
+              remaining,
+              goal.definition.progressUnitSingular,
+              goal.definition.progressUnitPlural,
+              "to go"
+            )}
+          </p>
+        )}
       </section>
     );
   }
@@ -57,20 +59,19 @@ export function UpNext({ goals }: { goals: AchievementProgress[] }) {
   const gridClass = goals.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3";
 
   return (
-    <section>
-      <h2 className="mb-4 font-heading text-xl font-semibold text-espresso">Up Next</h2>
-      <div className={`grid gap-4 ${gridClass}`}>
+    <section className="border-t border-border/60 pt-6">
+      <h2 className="mb-3 font-heading text-lg font-semibold text-espresso">Up Next</h2>
+      <div className={`grid gap-x-6 gap-y-4 ${gridClass}`}>
         {goals.map((goal) => (
-          <div key={goal.definition.key} className="rounded-xl border border-border bg-white p-5 shadow-soft">
-            <p className="font-heading text-base font-semibold text-espresso">{goal.definition.name}</p>
-            <p className="mt-1 text-xs text-charcoal/50">{goal.definition.description}</p>
-            <div className="mt-4">
-              <div className="h-1.5 overflow-hidden rounded-full bg-border" aria-hidden="true">
-                <div className="h-full rounded-full bg-sage" style={{ width: `${goal.percent}%` }} />
-              </div>
-              <p className="mt-2 text-xs font-medium text-charcoal/60">
-                {goal.progress} / {goal.definition.threshold} {goal.definition.progressUnitPlural}
+          <div key={goal.definition.key} className="min-w-0">
+            <div className="flex min-w-0 items-baseline justify-between gap-2">
+              <p className="truncate text-sm font-medium text-charcoal">{goal.definition.name}</p>
+              <p className="shrink-0 text-xs font-semibold text-espresso">
+                {goal.progress}/{goal.definition.threshold}
               </p>
+            </div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-border" aria-hidden="true">
+              <div className="h-full rounded-full bg-sage" style={{ width: `${goal.percent}%` }} />
             </div>
           </div>
         ))}

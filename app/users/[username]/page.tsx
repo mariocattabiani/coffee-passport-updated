@@ -76,59 +76,59 @@ export default async function UserProfilePage({ params }: UserPageProps) {
       <AuthenticatedHeader />
 
       {/*
-        Mobile/tablet (below lg): a single stacked column in the exact
-        order product wants — identity, summary, map, Cities/Drinks,
-        Recent Coffees. Nothing here is desktop-only markup wrapped in
-        a media query, it's just two adjacent blocks that happen to sit
-        side by side once there's room.
+        Mobile/tablet (below lg): a single stacked column — identity,
+        summary, map, Cities/Drinks, Recent Coffees, in that order.
 
-        Desktop (lg+): a deliberate two-column layout instead of one
-        narrow centered column with a tall gap above a separately-wide
-        feed. Left column (~40%) carries identity through Cities/Drinks;
-        right column (~60%) carries Recent Coffees, starting at the
-        same vertical position as the left column rather than far below
-        it. A capped, centered max width (not the site's default
-        unbounded `container`) is what actually makes this feel
-        intentional on a large monitor instead of pinned to the left
-        edge of the canvas.
+        Desktop (lg+): identity/summary/map/Cities-Drinks keep their
+        existing two-column top section (left ~40%, right ~60%), but
+        Recent Coffees now renders BELOW that, full-width, instead of
+        squeezed into the right column alongside the map. A 3-column
+        gallery grid needs real room — cramming it into ~60% of an
+        already-capped 1160px container would have produced tiny,
+        cropped-feeling tiles, exactly the "narrow column" problem
+        this restructure exists to avoid. A capped, centered max width
+        (not the site's default unbounded `container`) is what makes
+        this feel intentional on a large monitor instead of pinned to
+        the left edge of the canvas.
       */}
       <main className="mx-auto w-full max-w-[1160px] px-6 py-8 sm:py-12">
         <div className="lg:grid lg:grid-cols-5 lg:items-start lg:gap-10">
           <div className="min-w-0 space-y-6 lg:col-span-2">
             <PublicProfileHero profile={profile} />
             <PublicProfileSummary profile={profile} />
+          </div>
+
+          <div className="mt-6 min-w-0 space-y-6 lg:col-span-3 lg:mt-0">
             <PublicCoffeeMap firstName={profile.firstName} shops={mapShops} />
             <CitiesDrinksSection cities={cities} drinks={drinks} />
           </div>
+        </div>
 
-          <section className="mt-6 min-w-0 lg:col-span-3 lg:mt-0">
-            {isSelf ? (
-              <ProfileTabs
-                postsContent={
-                  <PublicActivity
-                    username={profile.username}
-                    identity={identity}
-                    initialItems={items}
-                    initialCursor={nextCursor}
-                    currentUserId={user.id}
-                  />
-                }
-                savedContent={<SavedList initialItems={savedItems} />}
-              />
-            ) : (
-              <>
-                <h2 className="mb-4 font-heading text-xl font-semibold text-espresso">Recent coffees</h2>
+        <section className="mt-8 min-w-0 lg:mt-10">
+          {isSelf ? (
+            <ProfileTabs
+              postsContent={
                 <PublicActivity
                   username={profile.username}
                   identity={identity}
                   initialItems={items}
                   initialCursor={nextCursor}
-                  currentUserId={user.id}
                 />
-              </>
-            )}
-          </section>
-        </div>
+              }
+              savedContent={<SavedList initialItems={savedItems} />}
+            />
+          ) : (
+            <>
+              <h2 className="mb-4 font-heading text-xl font-semibold text-espresso">Recent coffees</h2>
+              <PublicActivity
+                username={profile.username}
+                identity={identity}
+                initialItems={items}
+                initialCursor={nextCursor}
+              />
+            </>
+          )}
+        </section>
       </main>
     </div>
   );

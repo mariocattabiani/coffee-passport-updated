@@ -8,6 +8,7 @@ import { PassportHeader } from "@/components/passport/passport-header";
 import { PassportLibraryLinks } from "@/components/passport/passport-library-links";
 import { CoffeeMap, type MapShop } from "@/components/passport/coffee-map";
 import { FavoritesSection, type FavoriteSummary } from "@/components/passport/favorites-section";
+import { PassportStyleSummary } from "@/components/passport/passport-style-summary";
 import { PassportHistory } from "@/components/passport/passport-history";
 import { PassportEmptyState } from "@/components/passport/passport-empty-state";
 import { UpNext } from "@/components/passport/up-next";
@@ -53,7 +54,6 @@ interface Aggregate {
   subtitle: string;
   count: number;
   ratingSum: number;
-  photoUrl: string | null;
 }
 
 export default async function PassportPage() {
@@ -111,6 +111,8 @@ export default async function PassportPage() {
     id: l.id,
     shopId: l.shop_id,
     shopName: l.shop?.name ?? "Unknown shop",
+    shopCity: l.shop?.city ?? null,
+    shopState: l.shop?.state ?? null,
     drinkName: l.drink?.name ?? "Unknown drink",
     beverageCategory: l.beverage_category,
     drinkRating: l.drink_rating,
@@ -133,11 +135,12 @@ export default async function PassportPage() {
   const cafesExplored = new Set(logs.map((l) => l.shop_id)).size;
 
   // FAVORITES: most-logged wins, tie-broken by average rating, then
-  // alphabetically, so the result is always deterministic. Logs are
-  // already ordered newest-logged-first (by logged_at) from the query
-  // above, so the first photo found for a given drink or shop is the
-  // one from its most recently *had* occurrence, not merely the most
-  // recently entered row.
+  // alphabetically, so the result is always deterministic. This
+  // aggregate only ranks winners (key/count/rating) — it deliberately
+  // does not track photos/subtitle-of-record for the favorite drink
+  // anymore; see favoriteDrinkLog below for why that has to be looked
+  // up separately, from the specific representative log, rather than
+  // "whichever log happened to be scanned first".
   function buildAggregate(
     getKey: (l: FullLogRow) => string,
     getName: (l: FullLogRow) => string,
@@ -151,9 +154,6 @@ export default async function PassportPage() {
       if (existing) {
         existing.count += 1;
         existing.ratingSum += getRating(l);
-        if (l.photo_url && !existing.photoUrl) {
-          existing.photoUrl = signedUrlByPath.get(l.photo_url) ?? null;
-        }
       } else {
         map.set(key, {
           key,
@@ -161,7 +161,6 @@ export default async function PassportPage() {
           subtitle: getSubtitle(l),
           count: 1,
           ratingSum: getRating(l),
-          photoUrl: l.photo_url ? signedUrlByPath.get(l.photo_url) ?? null : null,
         });
       }
     }
@@ -188,12 +187,47 @@ export default async function PassportPage() {
     (l) => l.shop_rating
   );
 
+  // The favorite drink's representative log is looked up separately
+  // from the ranking aggregate above, deliberately: buildAggregate's
+  // own photoUrl is "the first photo found while scanning newest-
+  // first", but its subtitle (café name) is fixed to whichever log
+  // was encountered FIRST for that drink_id, which is the most recent
+  // log overall, not necessarily the one that supplied the photo. If
+  // the newest log of a favorite drink has no photo but an older one
+  // does, the two would silently mismatch — a photo from café A shown
+  // next to café B's name. logs is already sorted newest-first (see
+  // the query above), so .find() naturally returns the most recent
+  // match for each rule below, with no extra query.
+  //
+  // Matched by NORMALIZED DRINK NAME, not drink_id: public.drinks is
+  // shop-scoped (shop_id not null — see drink_logging_schema.sql), so
+  // "Green Tea" logged at two different cafés is genuinely two
+  // different drink_id rows. favoriteDrinkAgg's WINNING key is still
+  // exactly one of those drink_id rows (favorite-drink calculation is
+  // unchanged), but restricting the representative-photo search to
+  // that one drink_id would miss real photos of the same drink logged
+  // at a different café — exactly the bug this fixes. Matching by name
+  // instead finds any log of the same drink the user actually
+  // recognizes as "their favorite", regardless of which café's
+  // specific drink record produced it.
+  const favoriteDrinkName = favoriteDrinkAgg?.name.trim().toLowerCase() ?? null;
+  const favoriteDrinkLog = favoriteDrinkName
+    ? logs.find((l) => (l.drink?.name ?? "").trim().toLowerCase() === favoriteDrinkName && l.photo_url) ??
+      logs.find((l) => (l.drink?.name ?? "").trim().toLowerCase() === favoriteDrinkName) ??
+      null
+    : null;
+
   const favoriteDrink: FavoriteSummary | null = favoriteDrinkAgg
     ? {
         title: favoriteDrinkAgg.name,
-        subtitle: favoriteDrinkAgg.subtitle,
+        subtitle: favoriteDrinkLog?.shop?.name ?? favoriteDrinkAgg.subtitle,
         rating: Math.round((favoriteDrinkAgg.ratingSum / favoriteDrinkAgg.count) * 10) / 10,
-        photoUrl: favoriteDrinkAgg.photoUrl,
+        photoUrl: favoriteDrinkLog?.photo_url
+          ? signedUrlByPath.get(favoriteDrinkLog.photo_url) ?? null
+          : null,
+        photoPositionX: favoriteDrinkLog?.photo_position_x ?? null,
+        photoPositionY: favoriteDrinkLog?.photo_position_y ?? null,
+        logCount: favoriteDrinkAgg.count,
       }
     : null;
   const favoriteShop: FavoriteSummary | null = favoriteShopAgg
@@ -201,13 +235,9 @@ export default async function PassportPage() {
         title: favoriteShopAgg.name,
         subtitle: favoriteShopAgg.subtitle,
         rating: Math.round((favoriteShopAgg.ratingSum / favoriteShopAgg.count) * 10) / 10,
-        photoUrl: favoriteShopAgg.photoUrl,
+        photoUrl: null,
         logCount: favoriteShopAgg.count,
         shopId: favoriteShopAgg.key,
-        // No canonical shop image data source exists yet (that's the
-        // future Places/map work), left explicitly null rather than
-        // omitted so the intent is clear at the call site.
-        canonicalImageUrl: null,
       }
     : null;
 
@@ -374,7 +404,9 @@ export default async function PassportPage() {
 
             <UpNext goals={upNextGoals} />
 
-            <FavoritesSection favoriteDrink={favoriteDrink} favoriteShop={favoriteShop} hotIced={hotIced} />
+            <FavoritesSection favoriteDrink={favoriteDrink} favoriteShop={favoriteShop} />
+
+            <PassportStyleSummary data={hotIced} />
 
             <PassportHistory initialLogs={historyLogs} />
           </>

@@ -222,19 +222,33 @@ export function LogForm({ userId, initialShop = null }: LogFormProps) {
                   />
                 </div>
 
-                <div>
+                <div className="w-full min-w-0 max-w-full">
                   <Label htmlFor="loggedAtDate" className="mb-1.5 flex items-center gap-1 text-xs text-charcoal/60">
                     <Calendar className="h-3 w-3" />
                     Date
                   </Label>
-                  <Input
-                    id="loggedAtDate"
-                    type="date"
-                    value={data.loggedAtDate}
-                    onChange={(e) => update({ loggedAtDate: e.target.value })}
-                    max={todayLocal}
-                    className="w-full min-w-0 max-w-full"
-                  />
+                  {/* overflow-hidden here is a deliberate, scoped defense
+                      against a documented WebKit quirk: input[type=date]'s
+                      native shadow-DOM content (the locale-formatted
+                      MM/DD/YYYY text + calendar glyph) can render at its
+                      own intrinsic width regardless of the box's computed
+                      100%/min-w-0/max-w-full CSS, on some iOS Safari
+                      versions, at narrow viewports. min-w-0/max-w-full
+                      alone (already applied here and on Input's own base
+                      styles) constrain the BOX correctly; this clips any
+                      native content that still tries to render past it,
+                      rather than letting the whole page gain horizontal
+                      scroll from one form control's shadow content. */}
+                  <div className="w-full min-w-0 max-w-full overflow-hidden rounded-lg">
+                    <Input
+                      id="loggedAtDate"
+                      type="date"
+                      value={data.loggedAtDate}
+                      onChange={(e) => update({ loggedAtDate: e.target.value })}
+                      max={todayLocal}
+                      className="w-full min-w-0 max-w-full"
+                    />
+                  </div>
                   <p className="mt-1 text-xs text-charcoal/40">Logging something from earlier?</p>
                 </div>
 

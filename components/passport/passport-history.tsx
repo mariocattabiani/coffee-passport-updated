@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Check, ChevronDown } from "lucide-react";
 
 import { type LogCardData } from "@/components/logs/log-card";
-import { LogCardColumns } from "@/components/logs/log-card-columns";
+import { PassportLogGrid } from "@/components/passport/passport-log-grid";
 
 type FilterValue = "all" | "coffee" | "tea" | "hot" | "iced";
 type SortValue = "newest" | "oldest" | "highest" | "lowest";
@@ -25,23 +24,20 @@ const SORTS: { value: SortValue; label: string }[] = [
   { value: "lowest", label: "Lowest rated" },
 ];
 
+/**
+ * A visual collection grid, not the old long card-per-log list.
+ * Editing/deleting now lives on /logs/[id] (every tile is one tap
+ * target straight there), so this component no longer needs to track
+ * local removal state the way the old LogCardColumns wiring did — a
+ * delete elsewhere redirects back here and a fresh page load already
+ * has the correct data, no client-side patching required.
+ */
 export function PassportHistory({ initialLogs }: { initialLogs: LogCardData[] }) {
-  const [logs, setLogs] = useState(initialLogs);
   const [filter, setFilter] = useState<FilterValue>("all");
   const [sort, setSort] = useState<SortValue>("newest");
-  const router = useRouter();
-
-  function handleDeleted(logId: string) {
-    // Same pattern established on Dashboard: the card disappears the
-    // moment the server confirms the delete, then a background refresh
-    // catches up everything derived from the full history (stats,
-    // favorites, this list) without blocking that visual removal.
-    setLogs((prev) => prev.filter((log) => log.id !== logId));
-    router.refresh();
-  }
 
   const visibleLogs = useMemo(() => {
-    let result = logs;
+    let result = initialLogs;
     if (filter === "coffee") result = result.filter((l) => l.beverageCategory === "coffee");
     else if (filter === "tea") result = result.filter((l) => l.beverageCategory === "tea");
     else if (filter === "hot") result = result.filter((l) => l.temperature === "hot");
@@ -64,17 +60,17 @@ export function PassportHistory({ initialLogs }: { initialLogs: LogCardData[] })
       sorted.sort((a, b) => a.drinkRating - b.drinkRating);
     }
     return sorted;
-  }, [logs, filter, sort]);
+  }, [initialLogs, filter, sort]);
 
   return (
     <section>
-      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="font-heading text-xl font-semibold text-espresso">Your coffee trail</h2>
           <p className="text-sm text-charcoal/50">Every cup along the way</p>
         </div>
 
-        <div className="relative">
+        <div className="relative shrink-0">
           <label htmlFor="passport-sort" className="sr-only">
             Sort history
           </label>
@@ -82,7 +78,7 @@ export function PassportHistory({ initialLogs }: { initialLogs: LogCardData[] })
             id="passport-sort"
             value={sort}
             onChange={(e) => setSort(e.target.value as SortValue)}
-            className="appearance-none rounded-lg border border-border bg-white py-2.5 pl-4 pr-10 text-sm font-medium text-charcoal shadow-soft transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-espresso"
+            className="appearance-none rounded-lg border border-border bg-white py-2 pl-3.5 pr-9 text-base font-medium text-charcoal shadow-soft transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-espresso sm:text-sm"
           >
             {SORTS.map((s) => (
               <option key={s.value} value={s.value}>
@@ -91,13 +87,22 @@ export function PassportHistory({ initialLogs }: { initialLogs: LogCardData[] })
             ))}
           </select>
           <ChevronDown
-            className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-charcoal/40"
+            className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-charcoal/40"
             aria-hidden="true"
           />
         </div>
       </div>
 
-      <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Filter history">
+      {/* Compact, horizontally-scrollable on mobile rather than
+          wrapping onto multiple lines — the gallery below is meant to
+          be the visual focus, not a filter toolbar competing for
+          attention above it. No page-level scroll: this scrolls
+          independently within its own row. */}
+      <div
+        className="mb-4 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        role="group"
+        aria-label="Filter history"
+      >
         {FILTERS.map(({ value, label }) => {
           const active = filter === value;
           return (
@@ -106,13 +111,13 @@ export function PassportHistory({ initialLogs }: { initialLogs: LogCardData[] })
               type="button"
               onClick={() => setFilter(value)}
               aria-pressed={active}
-              className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
                 active
                   ? "border-espresso bg-espresso text-crema"
                   : "border-border bg-white text-charcoal hover:border-espresso/40"
               }`}
             >
-              {active && <Check className="h-3.5 w-3.5" aria-hidden="true" />}
+              {active && <Check className="h-3 w-3" aria-hidden="true" />}
               {label}
             </button>
           );
@@ -124,7 +129,7 @@ export function PassportHistory({ initialLogs }: { initialLogs: LogCardData[] })
           No logs match this filter.
         </p>
       ) : (
-        <LogCardColumns logs={visibleLogs} onDeleted={handleDeleted} />
+        <PassportLogGrid logs={visibleLogs} />
       )}
     </section>
   );

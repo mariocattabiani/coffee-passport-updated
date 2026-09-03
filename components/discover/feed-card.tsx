@@ -2,7 +2,6 @@ import Link from "next/link";
 import { User } from "lucide-react";
 
 import { LogCardBody } from "@/components/logs/log-card-body";
-import { SocialActionRow } from "@/components/logs/social-action-row";
 import { formatRelativeDate } from "@/lib/drink-logs/format";
 
 export interface FeedItem {
@@ -70,7 +69,7 @@ interface FeedCardProps {
  * segment at all when neither is stored — never a placeholder like
  * "Unknown" or "Location unavailable".
  */
-function formatShopLocation(city: string | null, state: string | null): string | null {
+export function formatShopLocation(city: string | null, state: string | null): string | null {
   if (city && state) return `${city}, ${state}`;
   if (city) return city;
   return null;
@@ -134,20 +133,16 @@ export function FeedCard({ item, currentUserId }: FeedCardProps) {
           photoPositionX: item.photoPositionX,
           photoPositionY: item.photoPositionY,
         }}
-      />
-
-      <SocialActionRow
-        logId={item.logId}
-        shopId={item.shopId}
-        drinkId={item.drinkId}
-        shopName={item.shopName}
-        drinkName={item.drinkName}
-        ownerUserId={item.ownerUserId}
-        currentUserId={currentUserId}
-        initialLikeCount={item.likeCount}
-        initialViewerHasLiked={item.viewerHasLiked}
-        initialViewerHasSaved={item.viewerHasSaved}
-        initialCommentCount={item.commentCount}
+        socialActions={{
+          logId: item.logId,
+          drinkId: item.drinkId,
+          ownerUserId: item.ownerUserId,
+          currentUserId: currentUserId,
+          initialLikeCount: item.likeCount,
+          initialViewerHasLiked: item.viewerHasLiked,
+          initialViewerHasSaved: item.viewerHasSaved,
+          initialCommentCount: item.commentCount,
+        }}
       />
     </div>
   );

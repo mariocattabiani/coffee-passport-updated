@@ -165,6 +165,8 @@ export default async function ShopPage({ params }: ShopPageProps) {
     id: l.id,
     shopId: shop.id,
     shopName: shop.name,
+    shopCity: shop.city,
+    shopState: shop.state,
     drinkName: l.drink?.name ?? "Unknown drink",
     beverageCategory: l.beverage_category,
     drinkRating: l.drink_rating,

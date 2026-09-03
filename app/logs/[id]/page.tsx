@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getPublicLog } from "@/lib/social/log-detail-actions";
 import { AuthenticatedHeader } from "@/components/dashboard/authenticated-header";
 import { LogCardBody } from "@/components/logs/log-card-body";
-import { SocialActionRow } from "@/components/logs/social-action-row";
+import { LogDetailOwnerActions } from "@/components/logs/log-detail-owner-actions";
 import { CommentSection } from "@/components/social/comment-section";
 import { formatRelativeDate } from "@/lib/drink-logs/format";
 
@@ -27,10 +27,23 @@ interface LogDetailPageProps {
  * CommentSheet's overlay chrome). Reachable from Activity taps and
  * from "View post" inside the feed's CommentSheet.
  *
- * getPublicLog returns null both when the log doesn't exist and when
- * it exists but isn't public — notFound() either way, deliberately: a
- * private log must never be distinguishable from one that was never
- * there at all, just by guessing its URL.
+ * Reuses LogCardBody's merged metadata+actions row exactly like the
+ * feed, rather than maintaining a second, spread-out action-row layout
+ * just for this page — one merged-row implementation, not two. The
+ * spaciousness this page still has over a dense feed card comes from
+ * its OWN page chrome (generous outer margin, a single card instead of
+ * a scrolling stream, full stars via compactRatingOnMobile={false})
+ * rather than from a structurally different action row.
+ *
+ * getPublicLog returns null when the log doesn't exist, or when it
+ * exists but isn't public and the viewer isn't its owner — notFound()
+ * either way, deliberately: a private log must never be
+ * distinguishable from one that was never there at all to anyone but
+ * its owner, just by guessing its URL. The owner CAN reach their own
+ * private logs here (the Passport grid links every tile, public or
+ * private, to this same route) — for a private log, Like/Comment/Save
+ * and the comment thread are hidden entirely (there's no one else who
+ * could ever interact with it), and owner Edit/Delete appears instead.
  */
 export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const { id } = await params;
@@ -44,6 +57,8 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const log = await getPublicLog(id);
   if (!log) notFound();
 
+  const isOwner = user.id === log.ownerUserId;
+  const isPublic = log.visibility === "public";
   const displayName = log.firstName || log.username || "Someone";
 
   return (
@@ -98,32 +113,36 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
               photoPositionX: log.photoPositionX,
               photoPositionY: log.photoPositionY,
             }}
+            socialActions={
+              isPublic
+                ? {
+                    logId: log.logId,
+                    drinkId: log.drinkId,
+                    ownerUserId: log.ownerUserId,
+                    currentUserId: user.id,
+                    initialLikeCount: log.likeCount,
+                    initialViewerHasLiked: log.viewerHasLiked,
+                    initialViewerHasSaved: log.viewerHasSaved,
+                    initialCommentCount: log.commentCount,
+                    commentsHref: "#comments",
+                  }
+                : undefined
+            }
           />
 
-          <SocialActionRow
-            logId={log.logId}
-            shopId={log.shopId}
-            drinkId={log.drinkId}
-            shopName={log.shopName}
-            drinkName={log.drinkName}
-            ownerUserId={log.ownerUserId}
-            currentUserId={user.id}
-            initialLikeCount={log.likeCount}
-            initialViewerHasLiked={log.viewerHasLiked}
-            initialViewerHasSaved={log.viewerHasSaved}
-            initialCommentCount={log.commentCount}
-            commentsHref="#comments"
-          />
+          {isOwner && <LogDetailOwnerActions logId={log.logId} />}
         </div>
 
-        <div id="comments" className="mt-4 overflow-hidden rounded-2xl border border-border bg-white shadow-soft scroll-mt-6">
-          <div className="border-b border-border/60 px-4 py-3">
-            <p className="text-sm font-medium text-charcoal">Comments</p>
+        {isPublic && (
+          <div id="comments" className="mt-4 overflow-hidden rounded-2xl border border-border bg-white shadow-soft scroll-mt-6">
+            <div className="border-b border-border/60 px-4 py-3">
+              <p className="text-sm font-medium text-charcoal">Comments</p>
+            </div>
+            <div className="h-[60vh] min-h-[320px]">
+              <CommentSection logId={log.logId} currentUserId={user.id} ownerUserId={log.ownerUserId} />
+            </div>
           </div>
-          <div className="h-[60vh] min-h-[320px]">
-            <CommentSection logId={log.logId} currentUserId={user.id} ownerUserId={log.ownerUserId} />
-          </div>
-        </div>
+        )}
       </main>
     </div>
   );

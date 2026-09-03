@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { Coffee, MapPin, Flame, Snowflake } from "lucide-react";
-
-import { StarDisplay } from "@/components/logs/star-display";
+import { Coffee, MapPin, Star } from "lucide-react";
 
 export interface FavoriteSummary {
   title: string;
@@ -9,169 +7,128 @@ export interface FavoriteSummary {
   rating: number;
   /** Present only for the favorite café, used to link to its page. */
   shopId?: string;
-  /** A photo pulled from one of the user's own logs of this drink. */
+  /** A photo pulled from one of the user's own logs — the most recent
+   *  matching log that has one, see app/passport/page.tsx. Only ever
+   *  populated for the favorite drink; the favorite café's redesigned
+   *  compact row never shows a photo (see FavoriteCafeRow). */
   photoUrl: string | null;
+  photoPositionX?: number | null;
+  photoPositionY?: number | null;
   logCount?: number;
-  /** Reserved for a future canonical shop image (from a real shop data
-   *  layer, e.g. Google Places), intentionally separate from photoUrl
-   *  above since it comes from a different source. Not populated yet,
-   *  the café card falls back to its current icon treatment until it
-   *  is. */
-  canonicalImageUrl?: string | null;
-}
-
-export interface HotIcedSummary {
-  hotPercent: number;
-  icedPercent: number;
 }
 
 interface FavoritesSectionProps {
   favoriteDrink: FavoriteSummary | null;
   favoriteShop: FavoriteSummary | null;
-  hotIced: HotIcedSummary | null;
 }
 
-function FavoriteDrinkCard({ data }: { data: FavoriteSummary | null }) {
+/**
+ * Favorite Drink is a wide 16:9 editorial photo — a profile highlight,
+ * not another feed/grid card, deliberately a third distinct ratio from
+ * Discover's 4:3 and the Passport grid's 4:5. object-position reads
+ * the same focal point every other photo surface already uses; no new
+ * crop system. When there's no photo, a compact branded fallback (icon
+ * + gradient) holds the same approximate footprint so the section
+ * doesn't jump in height between users who do and don't have a photo
+ * for their favorite drink.
+ */
+function FavoriteDrinkFeature({ data }: { data: FavoriteSummary | null }) {
   if (!data) return null;
 
+  const objectPosition = `${data.photoPositionX ?? 50}% ${data.photoPositionY ?? 50}%`;
+
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-white shadow-soft">
+    <div className="min-w-0">
+      <p className="text-xs font-semibold uppercase tracking-wide text-sage">Favorite drink</p>
+
       {data.photoUrl ? (
-        <div className="relative h-36 w-full">
+        <div className="relative mt-2 aspect-[16/9] w-full overflow-hidden rounded-lg bg-charcoal/5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={data.photoUrl} alt="" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-espresso/70 via-espresso/10 to-transparent" />
-          <div className="absolute bottom-3 left-4 right-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-crema/70">
-              Favorite drink
-            </p>
-            <p className="font-heading text-lg font-semibold text-crema">{data.title}</p>
-          </div>
+          <img
+            src={data.photoUrl}
+            alt=""
+            className="h-full w-full object-cover"
+            style={{ objectPosition }}
+          />
         </div>
       ) : (
-        <div className="flex h-36 w-full flex-col items-center justify-center gap-2 bg-espresso/5">
-          <Coffee className="h-8 w-8 text-espresso/20" aria-hidden="true" />
-          <div className="text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-sage">Favorite drink</p>
-            <p className="font-heading text-lg font-semibold text-espresso">{data.title}</p>
-          </div>
+        <div className="relative mt-2 flex aspect-[16/9] w-full items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-crema to-latte/30">
+          <Coffee className="h-8 w-8 text-espresso/25" aria-hidden="true" />
         </div>
       )}
-      <div className="p-4">
-        {data.subtitle && <p className="text-sm text-charcoal/50">{data.subtitle}</p>}
-        <div className="mt-2">
-          <StarDisplay rating={data.rating} size="h-3.5 w-3.5" showValue />
-        </div>
+
+      <p className="mt-2.5 truncate font-heading text-lg font-semibold text-espresso">{data.title}</p>
+      <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-charcoal/60">
+        {data.subtitle && <span className="min-w-0 truncate">{data.subtitle}</span>}
+        {data.subtitle && <span aria-hidden="true">·</span>}
+        <span className="flex shrink-0 items-center gap-1">
+          <Star className="h-3.5 w-3.5 fill-gold text-gold" aria-hidden="true" />
+          {data.rating.toFixed(1)}
+        </span>
       </div>
+      {typeof data.logCount === "number" && (
+        <p className="mt-0.5 text-xs text-charcoal/40">
+          Logged {data.logCount} {data.logCount === 1 ? "time" : "times"}
+        </p>
+      )}
     </div>
   );
 }
 
-function FavoriteCafeCard({ data }: { data: FavoriteSummary | null }) {
+/**
+ * A single compact horizontal row, not a card — café name (linking to
+ * its shop page when we have shop_id), rating, city/state + log count.
+ * No photo: this is the intentionally quieter of the two favorites,
+ * deliberately distinct from the drink's editorial treatment above it.
+ */
+function FavoriteCafeRow({ data }: { data: FavoriteSummary | null }) {
   if (!data) return null;
 
-  // Not populated yet (no real shop data layer exists this sprint), so
-  // this always falls through to the icon/location treatment today.
-  // Once a canonical shop image is available, this card switches to a
-  // photo treatment automatically, no redesign required.
-  const hasCanonicalImage = Boolean(data.canonicalImageUrl);
-
-  const cardContent = (
+  const content = (
     <>
-      {hasCanonicalImage ? (
-        <div className="relative h-36 w-full">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={data.canonicalImageUrl ?? undefined} alt="" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-espresso/70 via-espresso/10 to-transparent" />
-          <div className="absolute bottom-3 left-4 right-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-crema/70">
-              Favorite café
-            </p>
-            <p className="font-heading text-lg font-semibold text-crema">{data.title}</p>
-          </div>
+      <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-sage">
+        <MapPin className="h-3 w-3" aria-hidden="true" />
+        Favorite café
+      </div>
+      <div className="mt-1.5 flex min-w-0 items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-medium text-charcoal">{data.title}</p>
+          <p className="truncate text-xs text-charcoal/50">
+            {data.subtitle}
+            {data.subtitle && typeof data.logCount === "number" && " · "}
+            {typeof data.logCount === "number" &&
+              `${data.logCount} ${data.logCount === 1 ? "coffee" : "coffees"} logged`}
+          </p>
         </div>
-      ) : (
-        <div className="px-5 pt-5">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sage text-crema">
-              <MapPin className="h-4 w-4" aria-hidden="true" />
-            </div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-sage">Favorite café</p>
-          </div>
-          <p className="mt-3 font-heading text-lg font-semibold text-espresso">{data.title}</p>
-        </div>
-      )}
-
-      <div className="p-5 pt-3">
-        {data.subtitle && <p className="text-sm text-charcoal/50">{data.subtitle}</p>}
-        <div className="mt-3 flex items-center justify-between gap-2">
-          <StarDisplay rating={data.rating} size="h-3.5 w-3.5" showValue />
-          {typeof data.logCount === "number" && (
-            <span className="text-xs font-medium text-charcoal/50">
-              {data.logCount} {data.logCount === 1 ? "coffee" : "coffees"} logged here
-            </span>
-          )}
-        </div>
+        <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-charcoal/70">
+          <Star className="h-3.5 w-3.5 fill-gold text-gold" aria-hidden="true" />
+          {data.rating.toFixed(1)}
+        </span>
       </div>
     </>
   );
 
   if (data.shopId) {
     return (
-      <Link
-        href={`/shops/${data.shopId}`}
-        className="block overflow-hidden rounded-xl border border-sage/25 bg-sage/[0.06] shadow-soft transition-shadow hover:shadow-card"
-      >
-        {cardContent}
+      <Link href={`/shops/${data.shopId}`} className="block min-w-0 hover:opacity-80">
+        {content}
       </Link>
     );
   }
 
-  return (
-    <div className="overflow-hidden rounded-xl border border-sage/25 bg-sage/[0.06] shadow-soft">
-      {cardContent}
-    </div>
-  );
+  return <div className="min-w-0">{content}</div>;
 }
 
-function HotIcedCard({ data }: { data: HotIcedSummary | null }) {
-  return (
-    <div className="rounded-xl border border-border bg-white p-5 shadow-soft">
-      <p className="text-xs font-semibold uppercase tracking-wide text-sage">Your style</p>
-      {data ? (
-        <>
-          <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-border" aria-hidden="true">
-            <div className="bg-latte" style={{ width: `${data.hotPercent}%` }} />
-            <div className="bg-sage" style={{ width: `${data.icedPercent}%` }} />
-          </div>
-          <div className="mt-2.5 flex justify-between text-sm text-charcoal/70">
-            <span className="flex items-center gap-1.5">
-              <Flame className="h-3.5 w-3.5 text-latte" aria-hidden="true" />
-              {data.hotPercent}% Hot
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Snowflake className="h-3.5 w-3.5 text-sage" aria-hidden="true" />
-              {data.icedPercent}% Iced
-            </span>
-          </div>
-        </>
-      ) : (
-        <p className="mt-3 text-sm text-charcoal/40">Not enough data yet</p>
-      )}
-    </div>
-  );
-}
+export function FavoritesSection({ favoriteDrink, favoriteShop }: FavoritesSectionProps) {
+  if (!favoriteDrink && !favoriteShop) return null;
 
-export function FavoritesSection({ favoriteDrink, favoriteShop, hotIced }: FavoritesSectionProps) {
   return (
-    <section>
-      <h2 className="mb-4 font-heading text-xl font-semibold text-espresso">Your favorites</h2>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FavoriteDrinkCard data={favoriteDrink} />
-        <FavoriteCafeCard data={favoriteShop} />
-      </div>
-      <div className="mt-4">
-        <HotIcedCard data={hotIced} />
+    <section className="border-t border-border/60 pt-6">
+      <h2 className="mb-3 font-heading text-lg font-semibold text-espresso">Your favorites</h2>
+      <div className="space-y-5">
+        <FavoriteDrinkFeature data={favoriteDrink} />
+        {favoriteDrink && favoriteShop && <div className="border-t border-border/60" />}
+        <FavoriteCafeRow data={favoriteShop} />
       </div>
     </section>
   );

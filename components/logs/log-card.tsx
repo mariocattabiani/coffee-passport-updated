@@ -14,6 +14,8 @@ export interface LogCardData {
   id: string;
   shopId: string;
   shopName: string;
+  shopCity: string | null;
+  shopState: string | null;
   drinkName: string;
   beverageCategory: BeverageCategory;
   drinkRating: number;

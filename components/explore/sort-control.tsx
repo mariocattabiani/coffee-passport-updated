@@ -23,7 +23,7 @@ export function SortControl({ value, onChange, hasLocation }: SortControlProps) 
     <select
       value={value}
       onChange={(e) => onChange(e.target.value as SortOption)}
-      className="rounded-lg border border-border bg-white px-3 py-2 text-sm text-charcoal focus:border-espresso focus:outline-none"
+      className="rounded-lg border border-border bg-white px-3 py-2 text-base text-charcoal focus:border-espresso focus:outline-none sm:text-sm"
       aria-label="Sort results"
     >
       {OPTIONS.map((opt) => (

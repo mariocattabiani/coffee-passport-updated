@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export interface NotificationItem {
   notificationId: string;
-  type: "like" | "comment";
+  type: "like" | "comment" | "comment_reply" | "comment_like";
   actorUserId: string;
   actorFirstName: string | null;
   actorUsername: string | null;
@@ -24,7 +24,7 @@ export interface NotificationItem {
 
 interface NotificationRow {
   notification_id: string;
-  type: "like" | "comment";
+  type: "like" | "comment" | "comment_reply" | "comment_like";
   actor_user_id: string;
   actor_first_name: string | null;
   actor_username: string | null;

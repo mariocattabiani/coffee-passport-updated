@@ -17,6 +17,7 @@ export interface PublicLogDetail {
   shopId: string;
   shopName: string;
   ownerUserId: string;
+  visibility: "public" | "private";
   username: string | null;
   firstName: string | null;
   avatarUrl: string | null;
@@ -41,6 +42,7 @@ interface PublicLogRow {
   shop_id: string;
   shop_name: string;
   owner_user_id: string;
+  visibility: "public" | "private";
   username: string | null;
   first_name: string | null;
   avatar_url: string | null;
@@ -53,13 +55,20 @@ interface PublicLogRow {
 const SIGNED_URL_TTL_SECONDS = 5 * 60;
 
 /**
- * Returns null both when the log doesn't exist and when it exists but
- * isn't public — get_public_log itself returns an empty result set in
- * both cases, with no signal to tell them apart (see the SQL comment
- * in social_feed_v3.sql). The page calling this must turn a null into
- * a plain notFound(), never a "this post is private" message, which
- * would itself confirm the log's existence to someone who has no
- * business knowing that.
+ * Returns null when the log doesn't exist, when it exists but isn't
+ * public AND the current viewer isn't its owner. get_public_log
+ * itself returns an empty result set for a stranger requesting a
+ * private log, with no signal to tell "doesn't exist" from "exists
+ * but private" apart — the page calling this must turn a null into a
+ * plain notFound() for that case, never a "this post is private"
+ * message, which would itself confirm the log's existence to someone
+ * who has no business knowing that.
+ *
+ * The log's own owner CAN see their own private logs here — the
+ * Passport grid links every one of the owner's own tiles to this same
+ * route, public or private, so this function has to serve both.
+ * Privacy toward everyone else is unchanged: a private log is
+ * completely invisible to anyone but its owner, exactly as before.
  */
 export async function getPublicLog(logId: string): Promise<PublicLogDetail | null> {
   const supabase = await createClient();
@@ -97,6 +106,7 @@ export async function getPublicLog(logId: string): Promise<PublicLogDetail | nul
     shopId: row.shop_id,
     shopName: row.shop_name,
     ownerUserId: row.owner_user_id,
+    visibility: row.visibility,
     username: row.username,
     firstName: row.first_name,
     avatarUrl: row.avatar_url,

@@ -7,6 +7,40 @@ import { Heart, MessageCircle, User } from "lucide-react";
 import { markNotificationRead, markAllNotificationsRead, type NotificationItem } from "@/lib/notifications/actions";
 import { formatRelativeDate } from "@/lib/drink-logs/format";
 
+/**
+ * One sentence fragment per notification type, all four handled in
+ * one place rather than scattered inline ternaries. targetAvailable
+ * false always collapses to the same generic "no longer available"
+ * copy regardless of type — the specific drink/comment content is
+ * already nulled server-side by then, this just keeps the wording
+ * consistent with that.
+ */
+function notificationText(item: NotificationItem): string {
+  if (!item.targetAvailable) {
+    switch (item.type) {
+      case "like":
+        return "liked a post that's no longer available";
+      case "comment_like":
+        return "liked a comment that's no longer available";
+      case "comment_reply":
+        return "replied to a comment that's no longer available";
+      default:
+        return "commented on a post that's no longer available";
+    }
+  }
+
+  switch (item.type) {
+    case "like":
+      return `liked your ${item.drinkName}`;
+    case "comment_like":
+      return "liked your comment";
+    case "comment_reply":
+      return item.drinkName ? `replied to your comment on ${item.drinkName}` : "replied to your comment";
+    default:
+      return `commented on your ${item.drinkName}`;
+  }
+}
+
 interface ActivityListProps {
   initialItems: NotificationItem[];
 }
@@ -104,27 +138,18 @@ export function ActivityList({ initialItems }: ActivityListProps) {
 
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-charcoal">
-                    <span className="font-medium">{actorName}</span>{" "}
-                    {item.type === "like" ? (
-                      item.targetAvailable ? (
-                        <>liked your {item.drinkName}</>
-                      ) : (
-                        <>liked a post that&apos;s no longer available</>
-                      )
-                    ) : item.targetAvailable ? (
-                      <>commented on your {item.drinkName}</>
-                    ) : (
-                      <>commented on a post that&apos;s no longer available</>
-                    )}
+                    <span className="font-medium">{actorName}</span> {notificationText(item)}
                   </p>
-                  {item.targetAvailable && item.type === "comment" && item.commentBody && (
-                    <p className="mt-0.5 truncate text-sm text-charcoal/60">&quot;{item.commentBody}&quot;</p>
-                  )}
+                  {item.targetAvailable &&
+                    (item.type === "comment" || item.type === "comment_reply") &&
+                    item.commentBody && (
+                      <p className="mt-0.5 truncate text-sm text-charcoal/60">&quot;{item.commentBody}&quot;</p>
+                    )}
                   <p className="mt-1 text-xs text-charcoal/40">{formatRelativeDate(item.createdAt)}</p>
                 </div>
 
                 <div className="mt-0.5 shrink-0 text-charcoal/30">
-                  {item.type === "like" ? (
+                  {item.type === "like" || item.type === "comment_like" ? (
                     <Heart className="h-4 w-4" aria-hidden="true" />
                   ) : (
                     <MessageCircle className="h-4 w-4" aria-hidden="true" />

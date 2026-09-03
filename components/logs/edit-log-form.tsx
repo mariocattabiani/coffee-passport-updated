@@ -226,19 +226,24 @@ export function EditLogForm({
             />
           </div>
 
-          <div>
+          <div className="w-full min-w-0 max-w-full">
             <Label htmlFor="loggedAtDate" className="mb-1.5 flex items-center gap-1 text-xs text-charcoal/60">
               <Calendar className="h-3 w-3" />
               Date
             </Label>
-            <Input
-              id="loggedAtDate"
-              type="date"
-              value={loggedAtDate}
-              onChange={(e) => setLoggedAtDate(e.target.value)}
-              max={todayLocal}
-              className="w-full min-w-0 max-w-full"
-            />
+            {/* overflow-hidden: scoped defense against a WebKit
+                intrinsic-sizing quirk on input[type=date] — see
+                log-form.tsx for the full explanation. */}
+            <div className="w-full min-w-0 max-w-full overflow-hidden rounded-lg">
+              <Input
+                id="loggedAtDate"
+                type="date"
+                value={loggedAtDate}
+                onChange={(e) => setLoggedAtDate(e.target.value)}
+                max={todayLocal}
+                className="w-full min-w-0 max-w-full"
+              />
+            </div>
           </div>
 
           <div>

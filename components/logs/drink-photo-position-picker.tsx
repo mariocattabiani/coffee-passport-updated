@@ -37,11 +37,14 @@ function clamp(value: number, min: number, max: number): number {
  * is the only thing carried forward — the cropped pixels themselves
  * are never used or exported.
  *
- * The preview frame is 16:9, matching the mobile Discover feed
- * specifically (the most important social surface), not a claim that
- * every future display ratio will look identical — desktop's 4:3
- * treatment independently reads the same stored focal point and crops
- * around it on its own.
+ * The preview frame is 4:3 — the canonical drink-log photo shape used
+ * everywhere a card-sized photo appears (Discover, public profiles,
+ * Passport, Dashboard, the shop page's own-history cards, mobile and
+ * desktop alike, all through LogCardMedia), not a claim that every
+ * possible display ratio will look identical. WhatPeopleAreDrinking's
+ * square shop-page thumbnail is a deliberately different, smaller
+ * component that isn't part of this canonical shape and still reads
+ * the same stored focal point independently, on its own ratio.
  */
 export function DrinkPhotoPositionPicker({ imageSrc, onCancel, onSave }: DrinkPhotoPositionPickerProps) {
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
@@ -93,7 +96,7 @@ export function DrinkPhotoPositionPicker({ imageSrc, onCancel, onSave }: DrinkPh
             image={imageSrc}
             crop={crop}
             zoom={zoom}
-            aspect={16 / 9}
+            aspect={4 / 3}
             showGrid={false}
             onCropChange={setCrop}
             onZoomChange={setZoom}

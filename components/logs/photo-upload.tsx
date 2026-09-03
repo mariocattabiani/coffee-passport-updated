@@ -33,7 +33,7 @@ interface PhotoUploadProps {
  * used before any crop/position UI existed) — never permanently
  * cropped to one aspect ratio. Selecting a file opens
  * DrinkPhotoPositionPicker first, purely to choose a focal point; the
- * picker's own 16:9 preview frame is a positioning AID, not the shape
+ * picker's own 4:3 preview frame is a positioning AID, not the shape
  * the final upload gets baked into.
  *
  * "Reposition" (shown once a photo already exists) reopens the same
@@ -115,7 +115,7 @@ export function PhotoUpload({ preview, positionX, positionY, onChange }: PhotoUp
     <div>
       {preview ? (
         <>
-          <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-border bg-charcoal/5">
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-border bg-charcoal/5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={preview} alt="" className="h-full w-full object-cover" style={{ objectPosition }} />
           </div>

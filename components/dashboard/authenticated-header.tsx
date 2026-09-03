@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Coffee, Compass, IdCard, Plus } from "lucide-react";
+import { Coffee, MapPin, Users, IdCard, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/dashboard/logout-button";
@@ -47,7 +47,7 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
               </Button>
               <Button asChild variant={active === "explore" ? "secondary" : "ghost"} size="sm">
                 <Link href="/explore" aria-current={active === "explore" ? "page" : undefined}>
-                  Explore
+                  Cafés
                 </Link>
               </Button>
               <Button asChild variant={active === "discover" ? "secondary" : "ghost"} size="sm">
@@ -84,8 +84,15 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
       </header>
 
       {/* Mobile-only bottom tab bar. Five primary destinations:
-          Dashboard, Explore, Log (still visually raised/prominent), Discover,
-          Passport. Friends is deliberately not a sixth tab here, it's
+          Dashboard, Cafés (route stays /explore, only the visible label
+          changed — "Cafés" says exactly what the feature contains, more
+          plainly than "Explore" did), Log (still visually raised/
+          prominent), Discover, Passport. Cafés and Discover previously
+          shared the literal same Compass icon, which is exactly the kind
+          of "instantly confusing" the product direction called out —
+          MapPin (place-oriented) and Users (social-oriented) now make
+          the two products' different jobs obvious at a glance, not just
+          by label. Friends is deliberately not a sixth tab here, it's
           reachable from Discover's own header on mobile instead.
           Logout lives on the Passport page. Padded for the device's
           safe area so it never sits under a phone's home indicator.
@@ -118,8 +125,8 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
             active === "explore" ? "text-espresso" : "text-charcoal/40"
           }`}
         >
-          <Compass className="h-5 w-5" strokeWidth={active === "explore" ? 2.5 : 2} />
-          Explore
+          <MapPin className="h-5 w-5" strokeWidth={active === "explore" ? 2.5 : 2} />
+          Cafés
         </Link>
         <Link href="/log" className="flex flex-1 flex-col items-center gap-1 py-1.5" aria-label="Log a coffee">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-espresso text-crema shadow-card">
@@ -135,7 +142,7 @@ export async function AuthenticatedHeader({ active }: AuthenticatedHeaderProps) 
           }`}
         >
           <span className="relative">
-            <Compass
+            <Users
               className="h-5 w-5"
               strokeWidth={active === "discover" || active === "friends" ? 2.5 : 2}
             />
