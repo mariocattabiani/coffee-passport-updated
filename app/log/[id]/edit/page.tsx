@@ -48,7 +48,7 @@ export default async function EditLogPage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="min-h-screen bg-crema">
+    <div className="min-h-dvh bg-crema">
       <EditLogForm
         userId={user.id}
         logId={log.id}

@@ -26,7 +26,7 @@ export default async function EditProfilePage() {
     .single<Profile>();
 
   return (
-    <div className="min-h-screen bg-crema">
+    <div className="min-h-dvh bg-crema">
       <EditProfileForm
         userId={user.id}
         initial={{

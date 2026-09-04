@@ -49,31 +49,42 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single<Profile>();
-
-  // Lightweight query across every log, just for the stat tiles. Counts
-  // are computed here in code rather than a stored counter or a
-  // database view, this is plenty fast at this scale and stays
-  // trivially correct as logs are added, edited, or removed. Shop
-  // city/state is embedded here too now, still one query, so the
-  // Continue Your Passport card can consider a city-based goal the
-  // same way Passport itself does.
-  const { data: statRows } = await supabase
-    .from("drink_logs")
-    .select("shop_id, drink_id, beverage_category, shop:shops(city,state)")
-    .eq("user_id", user.id)
-    .returns<
-      {
-        shop_id: string;
-        drink_id: string;
-        beverage_category: BeverageCategory;
-        shop: { city: string | null; state: string | null } | null;
-      }[]
-    >();
+  // profile, the stats query, the recent-logs query, and achievement
+  // evaluation are all independent of each other (none needs another's
+  // result, only user.id, already resolved above) — previously each
+  // was awaited on its own in sequence, several of them long after
+  // they could have actually started. evaluatePassportAchievements()
+  // re-derives everything it needs from drink_logs itself server-side,
+  // so it doesn't need statRows' client-side result either. Its
+  // resolved value isn't used here, only awaited — getEarnedAchievements
+  // below still correctly runs AFTER this whole batch finishes, so the
+  // write-then-read ordering that matters is preserved.
+  const [{ data: profile }, { data: statRows }, { data: recentRows }] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", user.id).single<Profile>(),
+    supabase
+      .from("drink_logs")
+      .select("shop_id, drink_id, beverage_category, shop:shops(city,state)")
+      .eq("user_id", user.id)
+      .returns<
+        {
+          shop_id: string;
+          drink_id: string;
+          beverage_category: BeverageCategory;
+          shop: { city: string | null; state: string | null } | null;
+        }[]
+      >(),
+    supabase
+      .from("drink_logs")
+      .select(
+        "id, shop_id, beverage_category, drink_rating, shop_rating, caption, photo_url, photo_position_x, photo_position_y, price, size, temperature, created_at, logged_at, shop:shops(name,city,state), drink:drinks(name)"
+      )
+      .eq("user_id", user.id)
+      .order("logged_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(8)
+      .returns<RecentLogRow[]>(),
+    evaluatePassportAchievements(),
+  ]);
 
   const allLogs = statRows ?? [];
   const coffeesLogged = allLogs.filter((l) => l.beverage_category === "coffee").length;
@@ -81,14 +92,6 @@ export default async function DashboardPage() {
   const cafesVisited = new Set(allLogs.map((l) => l.shop_id)).size;
   const uniqueDrinks = new Set(allLogs.map((l) => l.drink_id)).size;
 
-  // Evaluate before reading: the person may have just been redirected
-  // here straight from creating a log that crossed a threshold, if we
-  // read earned achievements first, Dashboard could show "0 more until
-  // Coffee 25" for something already qualified for but not yet
-  // persisted. This RPC is idempotent and constraint-backed, so calling
-  // it here in addition to Passport's own call is safe, this is a
-  // second, not exclusive, evaluation point.
-  await evaluatePassportAchievements();
   const earnedAchievements = await getEarnedAchievements();
   const achievementProgress = computeAchievementProgress(
     {
@@ -105,17 +108,6 @@ export default async function DashboardPage() {
     earnedAchievements
   );
   const closestGoal = selectUpNext(achievementProgress)[0] ?? null;
-
-  const { data: recentRows } = await supabase
-    .from("drink_logs")
-    .select(
-      "id, shop_id, beverage_category, drink_rating, shop_rating, caption, photo_url, photo_position_x, photo_position_y, price, size, temperature, created_at, logged_at, shop:shops(name,city,state), drink:drinks(name)"
-    )
-    .eq("user_id", user.id)
-    .order("logged_at", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(8)
-    .returns<RecentLogRow[]>();
 
   const recent = recentRows ?? [];
 
@@ -157,7 +149,7 @@ export default async function DashboardPage() {
   const firstName = profile?.first_name || "there";
 
   return (
-    <div className="min-h-screen bg-crema pb-24 sm:pb-10">
+    <div className="min-h-dvh bg-crema pb-24 lg:pb-10">
       <AuthenticatedHeader active="dashboard" />
 
       <main className="container max-w-5xl space-y-8 py-6 sm:space-y-10 sm:py-10">

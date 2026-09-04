@@ -77,27 +77,36 @@ export default async function ShopPage({ params }: ShopPageProps) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // shops.select is readable by any authenticated user (existing RLS),
-  // no coordinates are required for anything on this page.
-  const { data: shop } = await supabase.from("shops").select("*").eq("id", id).maybeSingle<Shop>();
+  // shop and the four RPCs/queries below are all independent — none
+  // of them actually need shop's resolved value, they all key off the
+  // raw URL id, which is available immediately. shop only gated the
+  // start of the others before this fix; now it's checked (for
+  // notFound()) after everything has already been fetched together,
+  // saving one full round trip on every normal (shop exists) visit,
+  // the overwhelmingly common case.
+  const [
+    { data: shop },
+    { data: ratingSummary },
+    { data: topDrinksData },
+    { data: ownLogsRaw },
+    { data: activityData },
+  ] = await Promise.all([
+    supabase.from("shops").select("*").eq("id", id).maybeSingle<Shop>(),
+    supabase.rpc("get_shop_rating_summary", { target_shop_id: id }).maybeSingle<RatingSummaryRow>(),
+    supabase.rpc("get_shop_top_drinks", { target_shop_id: id, result_limit: 10 }),
+    supabase
+      .from("drink_logs")
+      .select(
+        "id, drink_rating, shop_rating, caption, photo_url, photo_position_x, photo_position_y, price, size, temperature, beverage_category, created_at, logged_at, drink:drinks(id,name)"
+      )
+      .eq("shop_id", id)
+      .eq("user_id", user.id)
+      .order("logged_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .returns<OwnLogRow[]>(),
+    supabase.rpc("get_shop_public_activity", { target_shop_id: id, result_limit: 12 }),
+  ]);
   if (!shop) notFound();
-
-  const [{ data: ratingSummary }, { data: topDrinksData }, { data: ownLogsRaw }, { data: activityData }] =
-    await Promise.all([
-      supabase.rpc("get_shop_rating_summary", { target_shop_id: id }).maybeSingle<RatingSummaryRow>(),
-      supabase.rpc("get_shop_top_drinks", { target_shop_id: id, result_limit: 10 }),
-      supabase
-        .from("drink_logs")
-        .select(
-          "id, drink_rating, shop_rating, caption, photo_url, photo_position_x, photo_position_y, price, size, temperature, beverage_category, created_at, logged_at, drink:drinks(id,name)"
-        )
-        .eq("shop_id", id)
-        .eq("user_id", user.id)
-        .order("logged_at", { ascending: false })
-        .order("created_at", { ascending: false })
-        .returns<OwnLogRow[]>(),
-      supabase.rpc("get_shop_public_activity", { target_shop_id: id, result_limit: 12 }),
-    ]);
 
   // RPC results are cast after the fact rather than chaining
   // .returns<T[]>() onto the rpc() call itself, that chained pattern
@@ -222,7 +231,7 @@ export default async function ShopPage({ params }: ShopPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-crema pb-24 sm:pb-10">
+    <div className="min-h-dvh bg-crema pb-24 lg:pb-10">
       <AuthenticatedHeader />
 
       <main className="container max-w-5xl space-y-8 py-6 sm:space-y-10 sm:py-10">

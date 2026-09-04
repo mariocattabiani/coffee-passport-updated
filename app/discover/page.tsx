@@ -26,7 +26,7 @@ export default async function DiscoverPage() {
   const hasPending = typeof pendingCount === "number" && pendingCount > 0;
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-crema pb-24 sm:pb-10">
+    <div className="min-h-dvh w-full max-w-full overflow-x-clip bg-crema pb-24 lg:pb-10">
       <AuthenticatedHeader active="discover" />
 
       <main className="mx-auto w-full max-w-5xl min-w-0 space-y-5 px-4 py-5 sm:space-y-6 sm:px-6 sm:py-10">

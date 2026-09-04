@@ -1,20 +1,9 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
 
-import { getUnreadNotificationCount } from "@/lib/notifications/actions";
+import { getHeaderBadgeCounts } from "@/lib/dashboard/header-badges";
 
-/**
- * A subtle dot, not a loud count badge, matching "do not make it
- * visually loud" — and the exact same visual language already used for
- * the pending-friend-request dot elsewhere in this header. Async
- * Server Component, same pattern as AuthenticatedHeader's own pending-
- * request fetch: one cheap indexed count query per page load, not a
- * client-side poll.
- */
-export async function NotificationBell() {
-  const unreadCount = await getUnreadNotificationCount();
-  const hasUnread = unreadCount > 0;
-
+function BellIcon({ hasUnread, unreadCount }: { hasUnread: boolean; unreadCount: number }) {
   return (
     <Link
       href="/activity"
@@ -27,4 +16,30 @@ export async function NotificationBell() {
       )}
     </Link>
   );
+}
+
+/**
+ * Rendered instantly as the <Suspense> fallback around <NotificationBell />
+ * — a fully clickable, real Bell Link, identical to the resolved state
+ * except it has no unread dot yet. Never a disabled placeholder: the
+ * bell must work immediately regardless of how long the badge count
+ * takes to resolve.
+ */
+export function NotificationBellFallback() {
+  return <BellIcon hasUnread={false} unreadCount={0} />;
+}
+
+/**
+ * Reads getHeaderBadgeCounts(), the same react cache()-deduped fetch
+ * the header's pending-friend-request dots read — all badge consumers
+ * share one Promise.all per request rather than each doing their own
+ * round trip. This component no longer takes props and no longer owns
+ * its own separate query; AuthenticatedHeader wraps it in its own
+ * <Suspense> boundary, so resolving here has no effect on when the
+ * rest of the header becomes interactive — the shell (brand, nav
+ * links, hamburger) is already rendered by the time this fills in.
+ */
+export async function NotificationBell() {
+  const { hasUnread, unreadCount } = await getHeaderBadgeCounts();
+  return <BellIcon hasUnread={hasUnread} unreadCount={unreadCount} />;
 }

@@ -62,7 +62,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const displayName = log.firstName || log.username || "Someone";
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-crema pb-24 sm:pb-10">
+    <div className="min-h-dvh w-full max-w-full overflow-x-clip bg-crema pb-24 lg:pb-10">
       <AuthenticatedHeader />
 
       <main className="mx-auto w-full max-w-lg px-6 py-8 sm:py-12">

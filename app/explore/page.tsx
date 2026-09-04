@@ -66,7 +66,7 @@ export default async function ExplorePage() {
   const upNextGoal = toUpNextGoalDisplay(selectUpNext(achievementProgress)[0] ?? null);
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-crema pb-24 sm:pb-10">
+    <div className="min-h-dvh overflow-x-clip bg-crema pb-24 lg:pb-10">
       <AuthenticatedHeader active="explore" />
 
       <main className="container min-w-0 max-w-6xl space-y-6 py-6 sm:py-10">

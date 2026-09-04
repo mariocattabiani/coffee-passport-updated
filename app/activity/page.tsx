@@ -26,7 +26,7 @@ export default async function ActivityPage() {
   const items = await getMyNotifications();
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-crema pb-24 sm:pb-10">
+    <div className="min-h-dvh w-full max-w-full overflow-x-clip bg-crema pb-24 lg:pb-10">
       <AuthenticatedHeader />
 
       <main className="mx-auto w-full max-w-2xl px-6 py-8 sm:py-12">

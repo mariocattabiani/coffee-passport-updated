@@ -41,7 +41,7 @@ export default async function FriendsPage() {
   const friends = (friendsRaw ?? []) as FriendRow[];
 
   return (
-    <div className="min-h-screen bg-crema pb-24 sm:pb-10">
+    <div className="min-h-dvh bg-crema pb-24 lg:pb-10">
       <AuthenticatedHeader active="friends" />
 
       <main className="container max-w-2xl space-y-10 py-6 sm:py-10">

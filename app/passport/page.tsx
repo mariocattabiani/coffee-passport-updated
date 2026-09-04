@@ -39,8 +39,6 @@ interface FullLogRow {
   photo_url: string | null;
   photo_position_x: number | null;
   photo_position_y: number | null;
-  price: number | null;
-  size: string | null;
   temperature: Temperature | null;
   created_at: string;
   logged_at: string;
@@ -66,24 +64,22 @@ export default async function PassportPage() {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single<Profile>();
-
-  // One query for everything: stats, favorites, and the full history
-  // list are all derived from this same result, so there's exactly one
-  // round trip for the user's log data, no matter how the page uses it.
-  // Fetched in parallel with the user's saves — Want to Try's count on
-  // this page needs the same get_my_saves() the dedicated Want to Try
-  // page and the self-profile Saved tab already call, not a second,
-  // parallel counting mechanism.
-  const [{ data: rows }, savedItems] = await Promise.all([
+  // profile, the full log history, and saved items are all
+  // independent of each other (nothing here needs another's result,
+  // only user.id, already resolved above) — previously profile was
+  // awaited on its own before this Promise.all, forcing one full
+  // extra round trip for no reason. One query for everything log-
+  // related: stats, favorites, and the full history list are all
+  // derived from this same rows result, no matter how the page uses
+  // it. Want to Try's count on this page needs the same
+  // get_my_saves() the dedicated Want to Try page and the self-profile
+  // Saved tab already call, not a second, parallel counting mechanism.
+  const [{ data: profile }, { data: rows }, savedItems] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", user.id).single<Profile>(),
     supabase
       .from("drink_logs")
       .select(
-        "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, photo_position_x, photo_position_y, price, size, temperature, created_at, logged_at, shop:shops(name,city,state,latitude,longitude), drink:drinks(name)"
+        "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, photo_position_x, photo_position_y, temperature, created_at, logged_at, shop:shops(name,city,state,latitude,longitude), drink:drinks(name)"
       )
       .eq("user_id", user.id)
       .order("logged_at", { ascending: false })
@@ -122,8 +118,17 @@ export default async function PassportPage() {
     photoPath: l.photo_url,
     photoPositionX: l.photo_position_x,
     photoPositionY: l.photo_position_y,
-    price: l.price,
-    size: l.size,
+    // Not selected above: Passport's own grid tile (PassportLogGrid ->
+    // CoffeeLogGridTile) never renders price/size — they were only
+    // ever consumed by the older long-card LogCard presentation, which
+    // Passport no longer uses. LogCardData still requires the fields
+    // (LogCard itself, used elsewhere — Dashboard, the shop page's own
+    // history — still renders them there, so the shared type keeps
+    // them), so they're supplied as null here specifically, not
+    // removed from the type. Trims two columns off what was
+    // potentially a large multi-hundred-row query for an active user.
+    price: null,
+    size: null,
     temperature: l.temperature,
     createdAt: l.created_at,
     loggedAt: l.logged_at,
@@ -351,7 +356,7 @@ export default async function PassportPage() {
   ).size;
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-crema pb-24 sm:pb-10">
+    <div className="min-h-dvh w-full max-w-full overflow-x-clip bg-crema pb-24 lg:pb-10">
       <AuthenticatedHeader active="passport" />
 
       <main className="container max-w-5xl min-w-0 space-y-6 py-6 sm:space-y-8 sm:py-10">

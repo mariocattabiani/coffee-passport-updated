@@ -72,7 +72,7 @@ export default async function UserProfilePage({ params }: UserPageProps) {
   ]);
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-crema pb-24 sm:pb-10">
+    <div className="min-h-dvh w-full max-w-full overflow-x-clip bg-crema pb-24 lg:pb-10">
       <AuthenticatedHeader />
 
       {/*

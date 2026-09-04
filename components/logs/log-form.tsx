@@ -227,26 +227,34 @@ export function LogForm({ userId, initialShop = null }: LogFormProps) {
                     <Calendar className="h-3 w-3" />
                     Date
                   </Label>
-                  {/* overflow-hidden here is a deliberate, scoped defense
-                      against a documented WebKit quirk: input[type=date]'s
-                      native shadow-DOM content (the locale-formatted
-                      MM/DD/YYYY text + calendar glyph) can render at its
-                      own intrinsic width regardless of the box's computed
-                      100%/min-w-0/max-w-full CSS, on some iOS Safari
-                      versions, at narrow viewports. min-w-0/max-w-full
-                      alone (already applied here and on Input's own base
-                      styles) constrain the BOX correctly; this clips any
-                      native content that still tries to render past it,
-                      rather than letting the whole page gain horizontal
-                      scroll from one form control's shadow content. */}
-                  <div className="w-full min-w-0 max-w-full overflow-hidden rounded-lg">
-                    <Input
+                  {/* The visible rounded rectangle (border/radius/bg/
+                      shadow) lives on THIS outer div, not on the native
+                      input inside it — that's the actual fix, not just
+                      another overflow-hidden patch. input[type=date]'s
+                      native shadow-DOM content (locale-formatted
+                      MM/DD/YYYY + calendar glyph) can render past its
+                      own box on some iOS Safari versions regardless of
+                      w-full/min-w-0/max-w-full. Previously the border
+                      lived on the input itself, so clipping that
+                      overflow (via overflow-hidden on a wrapper sized
+                      to match) could clip the input's own right border
+                      along with it — the border and the thing that
+                      might overflow were the same element. Now the
+                      input is fully borderless/transparent and the
+                      outer div's overflow-hidden only ever clips the
+                      input's internal content; the outer div's own
+                      border is a separate box that overflow-hidden
+                      can't touch, so a complete rectangle is guaranteed
+                      regardless of what the native control does
+                      inside it. */}
+                  <div className="w-full min-w-0 max-w-full overflow-hidden rounded-lg border border-input bg-white shadow-soft">
+                    <input
                       id="loggedAtDate"
                       type="date"
                       value={data.loggedAtDate}
                       onChange={(e) => update({ loggedAtDate: e.target.value })}
                       max={todayLocal}
-                      className="w-full min-w-0 max-w-full"
+                      className="box-border w-full min-w-0 max-w-full border-0 bg-transparent px-4 py-2 text-base text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-espresso focus-visible:ring-inset sm:text-sm"
                     />
                   </div>
                   <p className="mt-1 text-xs text-charcoal/40">Logging something from earlier?</p>

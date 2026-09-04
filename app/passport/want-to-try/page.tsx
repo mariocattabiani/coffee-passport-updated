@@ -31,7 +31,7 @@ export default async function WantToTryPage() {
   const savedItems = await getMySaves();
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-crema pb-24 sm:pb-10">
+    <div className="min-h-dvh w-full max-w-full overflow-x-clip bg-crema pb-24 lg:pb-10">
       <AuthenticatedHeader active="passport" />
 
       <main className="mx-auto w-full max-w-3xl px-6 py-8 sm:py-12">

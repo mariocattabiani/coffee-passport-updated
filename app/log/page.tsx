@@ -40,7 +40,7 @@ export default async function LogPage({ searchParams }: LogPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-crema">
+    <div className="min-h-dvh bg-crema">
       <LogForm userId={user.id} initialShop={initialShop} />
     </div>
   );

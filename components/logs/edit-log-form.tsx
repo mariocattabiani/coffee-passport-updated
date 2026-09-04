@@ -231,17 +231,19 @@ export function EditLogForm({
               <Calendar className="h-3 w-3" />
               Date
             </Label>
-            {/* overflow-hidden: scoped defense against a WebKit
-                intrinsic-sizing quirk on input[type=date] — see
-                log-form.tsx for the full explanation. */}
-            <div className="w-full min-w-0 max-w-full overflow-hidden rounded-lg">
-              <Input
+            {/* The visible rounded rectangle lives on this outer div,
+                not on the native input — see log-form.tsx for the full
+                explanation of why that's the actual fix rather than
+                another overflow-hidden patch on the bordered element
+                itself. */}
+            <div className="w-full min-w-0 max-w-full overflow-hidden rounded-lg border border-input bg-white shadow-soft">
+              <input
                 id="loggedAtDate"
                 type="date"
                 value={loggedAtDate}
                 onChange={(e) => setLoggedAtDate(e.target.value)}
                 max={todayLocal}
-                className="w-full min-w-0 max-w-full"
+                className="box-border w-full min-w-0 max-w-full border-0 bg-transparent px-4 py-2 text-base text-charcoal focus:outline-none focus-visible:ring-2 focus-visible:ring-espresso focus-visible:ring-inset sm:text-sm"
               />
             </div>
           </div>
