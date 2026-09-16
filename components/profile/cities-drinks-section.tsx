@@ -52,10 +52,23 @@ export function CitiesDrinksSection({ cities, drinks }: CitiesDrinksSectionProps
           ) : (
             <div className="divide-y divide-border/60">
               {cities.map((c) => (
-                <div key={`${c.city}-${c.state ?? ""}`} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div
+                  key={c.locationId ?? `unresolved-${c.city}-${c.region ?? ""}-${c.country ?? ""}`}
+                  className="flex items-center justify-between gap-3 px-4 py-3"
+                >
                   <p className="min-w-0 truncate font-medium text-charcoal">
                     {c.city}
-                    {c.state && <span className="text-charcoal/50">, {c.state}</span>}
+                    {/* US locations show state (Harrisburg, PA); everything
+                        else shows country (Rome, Italy). A city not yet
+                        resolved to a canonical location may only have
+                        raw region/country text (or neither) — shown when
+                        present, gracefully omitted when not, never a
+                        placeholder like "Unknown". */}
+                    {(c.region || c.country) && (
+                      <span className="text-charcoal/50">
+                        , {c.country === "United States" ? c.region ?? c.country : c.country ?? c.region}
+                      </span>
+                    )}
                   </p>
                   <p className="shrink-0 whitespace-nowrap text-xs text-charcoal/50">
                     {c.coffeeCount} {c.coffeeCount === 1 ? "coffee" : "coffees"}

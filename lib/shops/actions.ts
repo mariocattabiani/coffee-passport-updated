@@ -34,6 +34,14 @@ export interface CreateCoffeePassportShopInput {
   city?: string | null;
   nameSource: "user" | "manual" | "seed";
   locationSource?: "user" | "manual" | "seed";
+  /** A row id from Coffee Passport's OWN public.locations table (see
+   *  location_model.sql) — never a Google place id, coordinate, or
+   *  address component. Resolved by matchLocationFromHint (see
+   *  lib/shops/location-match-actions.ts) from text the person already
+   *  saw and confirmed, or left null when nothing could be safely
+   *  resolved. Validated server-side below; a bogus id is silently
+   *  ignored rather than trusted. */
+  locationId?: string | null;
 }
 
 export interface CreateCoffeePassportShopResult {
@@ -71,6 +79,22 @@ function validateCreateInput(input: CreateCoffeePassportShopInput): string | nul
  * every other surface (ratings, Top Drinks, logs, Passport history,
  * public activity, the café page itself) works the same regardless.
  *
+ * locationId is the one addition to that boundary, and it does not
+ * cross it: it points at a row in Coffee Passport's OWN
+ * public.locations table (city-level coordinates from an independent,
+ * non-Google source — see location_model.sql), resolved via
+ * matchLocationFromHint from text the person already saw and
+ * confirmed, never a Google place id/address/coordinate stored
+ * directly. Validated against locations before being trusted, below —
+ * and when it validates, this function reads that row's OWN
+ * city/region/country and writes THOSE onto the shop's legacy city/
+ * state/country columns, taking precedence over any city text the
+ * caller sent. That's still not Google persistence (the values come
+ * from public.locations, never from Google), and it's what keeps every
+ * existing surface that still reads shops.city/state directly
+ * (Places Explored, Been, favorite café subtitles, uniqueCitiesCount)
+ * correct for newly created shops, not just the location_id-aware map.
+ *
  * Race-safe the same way shop creation always has been in this project: attempts
  * the insert, and on a unique-constraint hit (someone else created the
  * same place a moment earlier), returns whichever row actually won,
@@ -94,7 +118,41 @@ export async function createCoffeePassportShop(
 
   const googlePlaceId = input.googlePlaceId.trim();
   const name = input.name.trim();
-  const city = input.city?.trim() || null;
+
+  // Never trust a client-supplied location_id blindly — confirm it's a
+  // real row in our own locations table first, and read its
+  // city/region/country FROM that row, not from any text the client
+  // sent. This is Coffee Passport's own data (public.locations, see
+  // location_model.sql), never Google's — the shop's legacy city/
+  // state/country columns end up populated so every existing surface
+  // that still reads them directly (Places Explored, Been, favorite
+  // café subtitles, uniqueCitiesCount, etc.) keeps working correctly
+  // for newly created shops, not just location_id-aware ones. A bogus/
+  // stale locationId is silently dropped (the shop still creates
+  // fine, just unresolved) rather than trusted or surfaced as an
+  // error over something this minor.
+  let locationId: string | null = null;
+  let city: string | null = input.city?.trim() || null;
+  let state: string | null = null;
+  let country: string | null = null;
+
+  if (input.locationId) {
+    const { data: locationRow } = await supabase
+      .from("locations")
+      .select("id, city, region, country")
+      .eq("id", input.locationId)
+      .maybeSingle<{ id: string; city: string; region: string | null; country: string }>();
+
+    if (locationRow) {
+      locationId = locationRow.id;
+      // Canonical location data takes precedence over any client-sent
+      // city text when a location actually resolved — see PART 7 of
+      // the correction this implements.
+      city = locationRow.city;
+      state = locationRow.region;
+      country = locationRow.country;
+    }
+  }
 
   const { data: inserted, error } = await supabase
     .from("shops")
@@ -102,8 +160,11 @@ export async function createCoffeePassportShop(
       google_place_id: googlePlaceId,
       name,
       city,
+      state,
+      country,
       name_source: input.nameSource,
       location_source: city ? input.locationSource ?? "user" : "unknown",
+      location_id: locationId,
     })
     .select()
     .single<Shop>();

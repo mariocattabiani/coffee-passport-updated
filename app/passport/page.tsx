@@ -6,7 +6,7 @@ import type { Profile, BeverageCategory, Temperature } from "@/lib/supabase/type
 import { AuthenticatedHeader } from "@/components/dashboard/authenticated-header";
 import { PassportHeader } from "@/components/passport/passport-header";
 import { PassportLibraryLinks } from "@/components/passport/passport-library-links";
-import { CoffeeMap, type MapShop } from "@/components/passport/coffee-map";
+import { TravelMap, type TravelMapPoint } from "@/components/maps/travel-map";
 import { FavoritesSection, type FavoriteSummary } from "@/components/passport/favorites-section";
 import { PassportStyleSummary } from "@/components/passport/passport-style-summary";
 import { PassportHistory } from "@/components/passport/passport-history";
@@ -42,7 +42,15 @@ interface FullLogRow {
   temperature: Temperature | null;
   created_at: string;
   logged_at: string;
-  shop: { name: string; city: string | null; state: string | null; latitude: number | null; longitude: number | null } | null;
+  shop: {
+    name: string;
+    city: string | null;
+    state: string | null;
+    country: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    location: { id: string; city: string; region: string | null; country: string; latitude: number; longitude: number } | null;
+  } | null;
   drink: { name: string } | null;
 }
 
@@ -79,7 +87,7 @@ export default async function PassportPage() {
     supabase
       .from("drink_logs")
       .select(
-        "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, photo_position_x, photo_position_y, temperature, created_at, logged_at, shop:shops(name,city,state,latitude,longitude), drink:drinks(name)"
+        "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, photo_position_x, photo_position_y, temperature, created_at, logged_at, shop:shops(name,city,state,latitude,longitude,location:locations(id,city,region,country,latitude,longitude)), drink:drinks(name)"
       )
       .eq("user_id", user.id)
       .order("logged_at", { ascending: false })
@@ -257,43 +265,53 @@ export default async function PassportPage() {
         }
       : null;
 
-  // COFFEE MAP: unique visited shops that have real coordinates. Old
-  // seed shops (no lat/lng) are simply excluded here, no Google call is
-  // ever made to try to "fill in" a location for them.
-  interface ShopMapAgg extends MapShop {
-    ratingSum: number;
-  }
-  const shopMapAggMap = new Map<string, ShopMapAgg>();
+  // COFFEE MAP: aggregated by CANONICAL LOCATION (city), not by
+  // individual shop — several cafés in the same city produce ONE dot
+  // with a combined café/drink count, matching the "one dot per city"
+  // product direction. A shop only contributes here if it has a
+  // resolved location_id (see location_model.sql/location_backfill.sql)
+  // — its own latitude/longitude (which almost no shop has) are never
+  // read for this anymore. This was the actual bug: a shop with a real
+  // city/state and NO coordinates used to be silently excluded from
+  // the map entirely while still counting everywhere else on this
+  // page, which is exactly why a user with genuine PA/Virginia Beach/
+  // Italy activity could see it in their own history but not on their
+  // own map.
+  const locationMapAgg = new Map<
+    string,
+    { locationId: string; city: string; region: string | null; country: string; latitude: number; longitude: number; shopIds: Set<string>; drinkCount: number }
+  >();
   for (const l of logs) {
-    if (l.shop?.latitude == null || l.shop?.longitude == null) continue;
-    const existing = shopMapAggMap.get(l.shop_id);
+    const location = l.shop?.location;
+    if (!location) continue;
+    const existing = locationMapAgg.get(location.id);
     if (existing) {
-      existing.visitCount += 1;
-      existing.ratingSum += l.shop_rating;
+      existing.shopIds.add(l.shop_id);
+      existing.drinkCount += 1;
     } else {
-      shopMapAggMap.set(l.shop_id, {
-        id: l.shop_id,
-        name: l.shop.name,
-        city: l.shop.city,
-        state: l.shop.state,
-        latitude: l.shop.latitude,
-        longitude: l.shop.longitude,
-        visitCount: 1,
-        ratingSum: l.shop_rating,
-        avgShopRating: 0,
+      locationMapAgg.set(location.id, {
+        locationId: location.id,
+        city: location.city,
+        region: location.region,
+        country: location.country,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        shopIds: new Set([l.shop_id]),
+        drinkCount: 1,
       });
     }
   }
-  const mapShops: MapShop[] = [...shopMapAggMap.values()].map((s) => ({
-    id: s.id,
-    name: s.name,
-    city: s.city,
-    state: s.state,
-    latitude: s.latitude,
-    longitude: s.longitude,
-    visitCount: s.visitCount,
-    avgShopRating: Math.round((s.ratingSum / s.visitCount) * 10) / 10,
+  const mapPoints: TravelMapPoint[] = [...locationMapAgg.values()].map((p) => ({
+    locationId: p.locationId,
+    city: p.city,
+    region: p.region,
+    country: p.country,
+    latitude: p.latitude,
+    longitude: p.longitude,
+    cafeCount: p.shopIds.size,
+    drinkCount: p.drinkCount,
   }));
+  const mapCafeCount = [...locationMapAgg.values()].reduce((sum, p) => sum + p.shopIds.size, 0);
 
   const hasLogs = logs.length > 0;
 
@@ -343,17 +361,12 @@ export default async function PassportPage() {
     ? logs.reduce((earliest, l) => (l.logged_at < earliest ? l.logged_at : earliest), logs[0].logged_at)
     : null;
 
-  // Map-specific city count, deliberately separate from
-  // uniqueCitiesCount above: this describes exactly what's rendered on
-  // the map (only shops with real coordinates), not the broader
-  // exploration count used by Places Explored and the achievement
-  // system, which includes every logged shop with a city regardless of
-  // whether it's been geocoded.
-  const mapCitiesCount = new Set(
-    mapShops
-      .filter((s) => s.city && s.state)
-      .map((s) => `${s.city!.toLowerCase().trim()}|${s.state!.toLowerCase().trim()}`)
-  ).size;
+  // Map-specific city count is now simply mapPoints.length: since
+  // mapPoints is already aggregated one-row-per-canonical-location,
+  // there's no separate coordinate-only subset to re-derive anymore —
+  // this is exactly the fix for the "Cities count and Map count can
+  // disagree" problem, on the owner side too, not just public
+  // profiles: there is only one aggregation now, not two.
 
   return (
     <div className="min-h-dvh w-full max-w-full overflow-x-clip bg-crema pb-24 lg:pb-10">
@@ -393,14 +406,19 @@ export default async function PassportPage() {
                 <h2 className="font-heading text-2xl font-semibold text-espresso sm:text-3xl">
                   Your Coffee Map
                 </h2>
-                {mapShops.length > 0 && (
+                {mapPoints.length > 0 && (
                   <p className="mt-1 text-sm text-charcoal/60">
-                    {mapShops.length} {mapShops.length === 1 ? "café" : "cafés"} across {mapCitiesCount}{" "}
-                    {mapCitiesCount === 1 ? "city" : "cities"}
+                    {mapCafeCount} {mapCafeCount === 1 ? "café" : "cafés"} across {mapPoints.length}{" "}
+                    {mapPoints.length === 1 ? "city" : "cities"}
                   </p>
                 )}
               </div>
-              <CoffeeMap shops={mapShops} />
+              <TravelMap points={mapPoints} />
+              {mapPoints.length === 0 && (
+                <div className="rounded-xl border border-dashed border-border bg-white/50 p-6 text-center">
+                  <p className="text-sm text-charcoal/50">No mapped locations yet.</p>
+                </div>
+              )}
             </section>
 
             <PlacesExplored places={placesExplored} />

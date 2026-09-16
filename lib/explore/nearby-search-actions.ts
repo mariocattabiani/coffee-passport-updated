@@ -170,7 +170,15 @@ export async function searchNearbyExternalCafes(
         googlePlaceId: p.id!,
         name: p.displayName?.text ?? "Unnamed café",
         formattedAddress: p.formattedAddress ?? null,
-        city: extractComponent(components, "locality"),
+        // locality, falling back to postal_town — same fallback
+        // lib/google-maps/autocomplete.ts's selectPlace already uses.
+        // Some Google results (notably UK-style addresses) have no
+        // locality component at all, only postal_town; without this
+        // fallback, Nearby Search specifically (not the autocomplete
+        // path) would silently hand back city: null for those results,
+        // which the structured canonical matcher then correctly (but
+        // unhelpfully) treats as "nothing to match against".
+        city: extractComponent(components, "locality") ?? extractComponent(components, "postal_town"),
         state: extractComponent(components, "administrative_area_level_1"),
         country: extractComponent(components, "country"),
         latitude: p.location!.latitude!,

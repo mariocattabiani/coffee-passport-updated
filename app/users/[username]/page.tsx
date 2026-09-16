@@ -63,7 +63,7 @@ export default async function UserProfilePage({ params }: UserPageProps) {
   const isSelf = profile.friendshipState === "self";
   const identity = { username: profile.username, firstName: profile.firstName, avatarUrl: profile.avatarUrl };
 
-  const [{ items, nextCursor }, mapShops, cities, drinks, savedItems] = await Promise.all([
+  const [{ items, nextCursor }, mapLocations, cities, drinks, savedItems] = await Promise.all([
     getPublicUserActivityPage(profile.username, null, identity),
     getPublicUserMap(profile.username),
     getPublicUserCities(profile.username),
@@ -99,7 +99,7 @@ export default async function UserProfilePage({ params }: UserPageProps) {
           </div>
 
           <div className="mt-6 min-w-0 space-y-6 lg:col-span-3 lg:mt-0">
-            <PublicCoffeeMap firstName={profile.firstName} shops={mapShops} />
+            <PublicCoffeeMap firstName={profile.firstName} locations={mapLocations} />
             <CitiesDrinksSection cities={cities} drinks={drinks} />
           </div>
         </div>
