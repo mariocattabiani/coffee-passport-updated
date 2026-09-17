@@ -7,18 +7,15 @@ interface PublicCoffeeMapProps {
 }
 
 /**
- * City-level travel map, not a per-café Google pin map — see
- * components/maps/travel-map.tsx for the full rationale, including why
- * TravelMap still uses Google Maps as its renderer (a real, licensed,
- * already-working map, kept in place until a real bundled geographic
- * asset can be sourced with actual network access — see that
- * component's own doc comment). What changed from the previous version
- * of THIS component is the data it plots: canonical locations (one dot
- * per city, via shops.location_id), not individual shop coordinates
- * that, per location_model.sql, almost no shop actually has — the map
- * appearing empty despite a person clearly having public activity
- * elsewhere on the page (Cities, stats) was the actual reported bug,
- * not a rendering-technology issue.
+ * City-level travel map, not a per-café Google pin map. Plots
+ * canonical locations (one dot per city, via shops.location_id), not
+ * individual shop coordinates that, per location_model.sql, almost no
+ * shop actually has — the map appearing empty despite a person clearly
+ * having public activity elsewhere on the page (Cities, stats) was the
+ * original reported bug this whole feature fixed. TravelMap itself
+ * (components/maps/travel-map.tsx) no longer uses Google Maps at all —
+ * a real-geography SVG world map now, see that component's own doc
+ * comment for the full rationale.
  */
 export function PublicCoffeeMap({ firstName, locations }: PublicCoffeeMapProps) {
   const displayName = firstName ? `${firstName}'s` : "Their";
@@ -35,8 +32,10 @@ export function PublicCoffeeMap({ firstName, locations }: PublicCoffeeMapProps) 
   return (
     <div>
       <p className="mb-2 text-sm text-charcoal/60">
-        <span className="font-medium text-charcoal">{displayName} Coffee Map</span> — {locations.length}{" "}
-        {locations.length === 1 ? "city" : "cities"} · {cafeCount} {cafeCount === 1 ? "café" : "cafés"}
+        <span className="font-medium text-charcoal">{displayName} Coffee Map</span>
+        {" · "}
+        {locations.length} {locations.length === 1 ? "city" : "cities"} · {cafeCount}{" "}
+        {cafeCount === 1 ? "café" : "cafés"}
       </p>
       <TravelMap points={locations} />
     </div>
