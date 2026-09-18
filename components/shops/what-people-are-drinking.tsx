@@ -6,6 +6,10 @@ import { formatRelativeDate } from "@/lib/drink-logs/format";
 export interface ShopActivityItem {
   logId: string;
   loggedAt: string;
+  /** When this record was actually created/submitted — what "posted X
+   *  ago" here means. loggedAt is the coffee's VISIT time, a genuinely
+   *  different concept. */
+  createdAt: string;
   drinkRating: number;
   caption: string | null;
   temperature: "hot" | "iced" | null;
@@ -85,7 +89,7 @@ export function WhatPeopleAreDrinking({ items }: WhatPeopleAreDrinkingProps) {
                   </div>
                   <p className="truncate text-xs font-medium text-charcoal">{displayName}</p>
                   <p className="ml-auto shrink-0 text-[10px] text-charcoal/40">
-                    {formatRelativeDate(item.loggedAt)}
+                    {formatRelativeDate(item.createdAt)}
                   </p>
                 </div>
                 {item.photoUrl && (

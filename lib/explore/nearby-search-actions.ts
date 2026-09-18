@@ -96,10 +96,18 @@ export async function searchNearbyExternalCafes(
       },
       body: JSON.stringify({
         // includedPrimaryTypes, not includedTypes: this restricts to
-        // places whose PRIMARY classification is a café, not merely
-        // any place that happens to also serve coffee, this is what
-        // keeps restaurants/bars/convenience stores out of results.
-        includedPrimaryTypes: ["cafe"],
+        // places whose PRIMARY classification is a café-type place,
+        // not merely any place that happens to also serve coffee —
+        // this is what keeps restaurants/bars/convenience stores out
+        // of results. Kept deliberately stricter than the explicit
+        // text search in lib/google-maps/autocomplete.ts (which now
+        // uses a broader 5-type default plus a user-triggered
+        // unrestricted fallback): Nearby Search is passive "what's
+        // around me" discovery with no name/text signal to anchor
+        // relevance, so it should surface only obviously coffee-
+        // focused businesses rather than general restaurants or
+        // nightlife venues a "bar" or "restaurant" type would let in.
+        includedPrimaryTypes: ["cafe", "coffee_shop", "coffee_roastery", "coffee_stand"],
         maxResultCount: MAX_RESULT_COUNT,
         rankPreference: "DISTANCE",
         locationRestriction: {

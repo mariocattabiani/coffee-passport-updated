@@ -1,5 +1,33 @@
 import { loadPlacesLibrary } from "@/lib/google-maps/loader";
 
+/**
+ * The single, shared default type filter for explicit café text
+ * search (Log Coffee, Explore text search, onboarding favorite café —
+ * every consumer of ShopSearchSession.search() without
+ * { unrestricted: true }). Defined exactly once here rather than
+ * duplicated per component, so there is one place to tune it.
+ * Google Autocomplete allows at most 5 includedPrimaryTypes.
+ *
+ * - cafe / coffee_shop: the obvious cases.
+ * - bakery: catches bakery cafés and pastry shops that also serve
+ *   coffee as a real part of their business.
+ * - coffee_roastery: specialty roasters, a real and common category.
+ * - restaurant: legitimate coffee-serving venues (a small espresso
+ *   bar, an Italian caffè) that Google sometimes primary-types as a
+ *   restaurant rather than a café.
+ *
+ * Deliberately excludes "bar" — Google's "bar" type generally implies
+ * an alcohol-serving venue, and including it in the DEFAULT filter
+ * would let through exactly the kind of irrelevant result this filter
+ * exists to keep out. Italian cafés/bars that Google happens to
+ * primary-type as "bar" remain reachable through the second-stage
+ * unrestricted fallback ("Can't find it? Search all places"), a
+ * deliberate, user-initiated choice rather than an automatic one.
+ * "coffee_stand" is a real, valid category too, but is left out solely
+ * because of the five-type limit — also reachable via the fallback.
+ */
+const DEFAULT_CAFE_TYPES = ["cafe", "coffee_shop", "bakery", "coffee_roastery", "restaurant"];
+
 export interface ShopSuggestion {
   placeId: string;
   mainText: string;
@@ -40,7 +68,27 @@ export interface SelectedShopPlace {
 export class ShopSearchSession {
   private token: google.maps.places.AutocompleteSessionToken | null = null;
 
-  async search(input: string): Promise<ShopSuggestion[]> {
+  /**
+   * search(input) alone filters to DEFAULT_CAFE_TYPES: removing the
+   * old, tighter ["cafe", "coffee_shop"]-only filter (a real, reported
+   * bug — see the git history on this file) fixed recall but broke
+   * precision the other way, surfacing doctors' offices, nail salons,
+   * and auto shops for short/ambiguous queries. This five-type default
+   * (Google Autocomplete allows at most five includedPrimaryTypes) is
+   * the actual fix: broad enough to cover legitimate coffee venues
+   * Google classifies outside "cafe"/"coffee_shop" (a bakery café, a
+   * specialty roaster, a restaurant whose primary business is really
+   * coffee), narrow enough to keep obviously unrelated businesses out
+   * of the DEFAULT results a person sees first.
+   *
+   * search(input, { unrestricted: true }) drops the type filter
+   * entirely — the explicit, user-initiated second stage ("Can't find
+   * it? Search all places") for venues Google classifies as "bar"
+   * (many Italian caffès), "lodging" (hotel cafés), or anything else
+   * outside the five default types. Never triggered automatically;
+   * every consumer of this class gates it behind a real tap.
+   */
+  async search(input: string, options?: { unrestricted?: boolean }): Promise<ShopSuggestion[]> {
     const trimmed = input.trim();
     if (trimmed.length < 3) return [];
 
@@ -53,7 +101,7 @@ export class ShopSearchSession {
     const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
       input: trimmed,
       sessionToken: this.token,
-      includedPrimaryTypes: ["cafe", "coffee_shop"],
+      ...(options?.unrestricted ? {} : { includedPrimaryTypes: DEFAULT_CAFE_TYPES }),
     });
 
     return suggestions

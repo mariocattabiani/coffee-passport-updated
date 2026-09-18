@@ -60,6 +60,18 @@ function mapFeedRow(r: PublicFeedRow, signedUrlByPath: Map<string, string>): Fee
   return {
     logId: r.log_id,
     loggedAt: r.logged_at,
+    // The actual fix for the "post immediately shows several hours
+    // ago" bug: created_at was already returned by the feed RPC (see
+    // supabase/social_feed_v4.sql) and already threaded through
+    // PublicFeedRow and the cursor pagination above, but was never
+    // actually copied onto the FeedItem this function returns — the
+    // feed card was falling back to loggedAt (the coffee's VISIT time,
+    // resolved separately, sometimes noon-anchored rather than "now" —
+    // see resolveLoggedAt in lib/drink-logs/actions.ts) for its
+    // relative "how long ago was this posted" display, which is a
+    // fundamentally different concept from "when was this record
+    // actually created."
+    createdAt: r.created_at,
     drinkRating: r.drink_rating,
     caption: r.caption,
     temperature: r.temperature,

@@ -365,8 +365,17 @@ export async function createDrinkLog(input: CreateDrinkLogInput) {
     return { error: "Something went wrong saving your log. Please try again." };
   }
 
+  // Dashboard still needs revalidating — its own stats/recent-activity
+  // reflect this new log even though the person is no longer landing
+  // there. Discover is the new redirect target and needs fresh data
+  // too, so the just-created post is actually there without requiring
+  // a manual hard refresh — Discover's own page-level data fetching
+  // (unchanged by this) re-runs against the database on next request
+  // once its cache is invalidated, the same mechanism already relied
+  // on for /dashboard here, just pointed at one more path.
   revalidatePath("/dashboard");
-  redirect("/dashboard");
+  revalidatePath("/discover");
+  redirect("/discover");
 }
 
 export interface UpdateDrinkLogInput extends RatableFields {

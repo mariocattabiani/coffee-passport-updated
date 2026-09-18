@@ -77,7 +77,11 @@ export function LogCard({ log, onDeleted }: LogCardProps) {
           </span>
           {log.size && <span>{log.size}</span>}
           {log.price !== null && <span>{formatPrice(log.price)}</span>}
-          <span className="ml-auto">{formatRelativeDate(log.loggedAt)}</span>
+          {/* createdAt, not loggedAt: this slot means "how long ago
+              was this posted," not "when was the coffee visit" — see
+              lib/discover/actions.ts's mapFeedRow for the fuller
+              explanation of this same fix. */}
+          <span className="ml-auto">{formatRelativeDate(log.createdAt)}</span>
         </div>
 
         <div className="mt-3 flex gap-3 border-t border-border/60 pt-3">

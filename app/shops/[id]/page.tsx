@@ -47,6 +47,7 @@ interface TopDrinkRow {
 interface ShopActivityRow {
   log_id: string;
   logged_at: string;
+  created_at: string;
   drink_rating: number;
   caption: string | null;
   temperature: Temperature | null;
@@ -157,6 +158,7 @@ export default async function ShopPage({ params }: ShopPageProps) {
   const activityItems: ShopActivityItem[] = activity.map((a) => ({
     logId: a.log_id,
     loggedAt: a.logged_at,
+    createdAt: a.created_at,
     drinkRating: a.drink_rating,
     caption: a.caption,
     temperature: a.temperature,

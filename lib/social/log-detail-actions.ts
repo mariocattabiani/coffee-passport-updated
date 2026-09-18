@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 export interface PublicLogDetail {
   logId: string;
   loggedAt: string;
+  /** When this record was actually created/submitted — what "posted X
+   *  ago" here means. loggedAt is the coffee's VISIT time, a genuinely
+   *  different concept. */
+  createdAt: string;
   drinkRating: number;
   caption: string | null;
   temperature: "hot" | "iced" | null;
@@ -30,6 +34,7 @@ export interface PublicLogDetail {
 interface PublicLogRow {
   log_id: string;
   logged_at: string;
+  created_at: string;
   drink_rating: number;
   caption: string | null;
   temperature: "hot" | "iced" | null;
@@ -94,6 +99,7 @@ export async function getPublicLog(logId: string): Promise<PublicLogDetail | nul
   return {
     logId: row.log_id,
     loggedAt: row.logged_at,
+    createdAt: row.created_at,
     drinkRating: row.drink_rating,
     caption: row.caption,
     temperature: row.temperature,

@@ -96,7 +96,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
                 <p className="truncate text-sm font-medium text-charcoal">{displayName}</p>
               </div>
             )}
-            <p className="ml-auto shrink-0 text-xs text-charcoal/40">{formatRelativeDate(log.loggedAt)}</p>
+            <p className="ml-auto shrink-0 text-xs text-charcoal/40">{formatRelativeDate(log.createdAt)}</p>
           </div>
 
           <LogCardBody

@@ -31,6 +31,7 @@ export function ExploreSearch() {
   const [searchError, setSearchError] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"filtered" | "unrestricted">("filtered");
   const [pendingPlace, setPendingPlace] = useState<SelectedShopPlace | null>(null);
   const requestIdRef = useRef(0);
   const sessionRef = useRef<ShopSearchSession | null>(null);
@@ -53,6 +54,7 @@ export function ExploreSearch() {
       setSearching(false);
       setSearchError(false);
       setOpen(false);
+      setMode("filtered");
       return;
     }
 
@@ -66,7 +68,7 @@ export function ExploreSearch() {
       setStoredMatches(stored);
 
       try {
-        const external = await getSession().search(trimmed);
+        const external = await getSession().search(trimmed, { unrestricted: mode === "unrestricted" });
         if (thisRequestId === requestIdRef.current) {
           setExternalMatches(external);
           setSearchError(false);
@@ -82,7 +84,8 @@ export function ExploreSearch() {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timeout);
-  }, [query]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, mode]);
 
   function handleSelectStored(match: StoredShopMatch) {
     setOpen(false);
@@ -166,12 +169,56 @@ export function ExploreSearch() {
               </div>
             </button>
           ))}
+
+          {/* Two-stage fallback, same shared ShopSearchSession, never
+              switches automatically. */}
+          <div className="border-t border-border/60 px-4 py-2.5">
+            {mode === "filtered" ? (
+              <button
+                type="button"
+                onClick={() => setMode("unrestricted")}
+                className="text-xs font-medium text-charcoal/50 underline-offset-2 hover:text-espresso hover:underline"
+              >
+                Can&apos;t find it? Search all places
+              </button>
+            ) : (
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-charcoal/40">Showing all places</p>
+                <button
+                  type="button"
+                  onClick={() => setMode("filtered")}
+                  className="text-xs font-medium text-charcoal/50 underline-offset-2 hover:text-espresso hover:underline"
+                >
+                  Back to café results
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {showNoResults && (
-        <div className="absolute z-30 mt-2 w-full rounded-xl border border-border bg-white p-4 text-center text-sm text-charcoal/50 shadow-card">
-          No cafés found for &quot;{query.trim()}&quot;
+        <div className="absolute z-30 mt-2 w-full rounded-xl border border-border bg-white p-4 text-center text-sm shadow-card">
+          <p className="text-charcoal/50">
+            {mode === "filtered" ? "No café results found." : "No places found."}
+          </p>
+          {mode === "filtered" ? (
+            <button
+              type="button"
+              onClick={() => setMode("unrestricted")}
+              className="mt-1.5 text-xs font-medium text-charcoal/50 underline-offset-2 hover:text-espresso hover:underline"
+            >
+              Can&apos;t find it? Search all places
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setMode("filtered")}
+              className="mt-1.5 text-xs font-medium text-charcoal/50 underline-offset-2 hover:text-espresso hover:underline"
+            >
+              Back to café results
+            </button>
+          )}
         </div>
       )}
 

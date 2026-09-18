@@ -134,6 +134,7 @@ export async function getPublicUserActivityPage(
   const items: FeedItem[] = results.map((r) => ({
     logId: r.log_id,
     loggedAt: r.logged_at,
+    createdAt: r.created_at,
     drinkRating: r.drink_rating,
     caption: r.caption,
     temperature: r.temperature,

@@ -7,6 +7,7 @@ import { formatRelativeDate } from "@/lib/drink-logs/format";
 export interface FeedItem {
   logId: string;
   loggedAt: string;
+  createdAt: string;
   drinkRating: number;
   caption: string | null;
   temperature: "hot" | "iced" | null;
@@ -96,7 +97,7 @@ export function FeedCard({ item, currentUserId }: FeedCardProps) {
         <div className="flex min-w-0 items-baseline justify-between gap-2">
           <p className="truncate text-sm font-semibold text-charcoal">{displayName}</p>
           <span className="shrink-0 whitespace-nowrap text-xs text-charcoal/40">
-            {formatRelativeDate(item.loggedAt)}
+            {formatRelativeDate(item.createdAt)}
           </span>
         </div>
         {metaParts.length > 0 && (

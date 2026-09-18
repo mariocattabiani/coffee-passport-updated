@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Search, MapPin, Check, Pencil, Loader2, AlertCircle } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { findShopByGooglePlaceId } from "@/lib/shops/actions";
 import { AddExternalCafeDialog } from "@/components/explore/add-external-cafe-dialog";
-import { ShopSearchSession, type ShopSuggestion, type SelectedShopPlace } from "@/lib/google-maps/autocomplete";
+import { useShopSearch, MIN_QUERY_LENGTH } from "@/lib/google-maps/use-shop-search";
+import type { ShopSuggestion, SelectedShopPlace } from "@/lib/google-maps/autocomplete";
 import type { Shop } from "@/lib/supabase/types";
 
 interface GoogleShopPickerProps {
@@ -15,80 +16,18 @@ interface GoogleShopPickerProps {
   onChange: () => void;
 }
 
-const DEBOUNCE_MS = 350;
-const MIN_QUERY_LENGTH = 3;
-
 export function GoogleShopPicker({ selectedShop, onSelect, onChange }: GoogleShopPickerProps) {
   const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<ShopSuggestion[]>([]);
-  const [searching, setSearching] = useState(false);
   const [selecting, setSelecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const [pendingPlace, setPendingPlace] = useState<SelectedShopPlace | null>(null);
 
-  const sessionRef = useRef<ShopSearchSession | null>(null);
-  const requestIdRef = useRef(0);
-
-  function getSession() {
-    if (!sessionRef.current) {
-      sessionRef.current = new ShopSearchSession();
-    }
-    return sessionRef.current;
-  }
-
-  // Abandoning the picker (unmount) means any half-used session token
-  // is discarded rather than ever being reused later.
-  useEffect(() => {
-    return () => {
-      sessionRef.current?.reset();
-    };
-  }, []);
-
-  useEffect(() => {
-    const trimmed = query.trim();
-
-    if (trimmed.length < MIN_QUERY_LENGTH) {
-      // Invalidate anything already in flight from a longer query, a
-      // stale response landing after the field was cleared must never
-      // repopulate suggestions.
-      requestIdRef.current += 1;
-      // Falling back below the threshold counts as abandoning the
-      // search, not just unmounting the picker, so the token is reset
-      // and the session itself is dropped rather than reused.
-      sessionRef.current?.reset();
-      sessionRef.current = null;
-      setSuggestions([]);
-      setSearching(false);
-      return;
-    }
-
-    setSearching(true);
-    setError(null);
-    const thisRequestId = ++requestIdRef.current;
-
-    const timeout = setTimeout(async () => {
-      try {
-        const results = await getSession().search(trimmed);
-        // A faster, later request may have already landed, ignore this
-        // stale one rather than overwriting newer results.
-        if (thisRequestId === requestIdRef.current) {
-          setSuggestions(results);
-          setSearching(false);
-        }
-      } catch {
-        if (thisRequestId === requestIdRef.current) {
-          setError("Couldn't search cafés right now. Please try again.");
-          setSearching(false);
-        }
-      }
-    }, DEBOUNCE_MS);
-
-    return () => clearTimeout(timeout);
-  }, [query]);
+  const { suggestions, searching, error: searchError, mode, setMode, getSession } = useShopSearch(query);
+  const error = selectionError ?? searchError;
 
   async function handleSelectSuggestion(suggestion: ShopSuggestion) {
     setSelecting(true);
-    setError(null);
+    setSelectionError(null);
 
     try {
       const place = await getSession().selectPlace(suggestion);
@@ -98,6 +37,7 @@ export function GoogleShopPicker({ selectedShop, onSelect, onChange }: GoogleSho
       // Google request either, this is a plain database lookup.
       const existing = await findShopByGooglePlaceId(place.googlePlaceId);
       if (existing) {
+        setSelecting(false);
         onSelect(existing);
         return;
       }
@@ -105,11 +45,8 @@ export function GoogleShopPicker({ selectedShop, onSelect, onChange }: GoogleSho
       setSelecting(false);
       setPendingPlace(place);
     } catch {
-      setError("Couldn't look up that café. Please try again.");
+      setSelectionError("Couldn't look up that café. Please try again.");
       setSelecting(false);
-    } finally {
-      // A fresh session starts the next time this picker is used.
-      sessionRef.current = null;
     }
   }
 
@@ -119,11 +56,17 @@ export function GoogleShopPicker({ selectedShop, onSelect, onChange }: GoogleSho
   }
 
   function handleChange() {
-    sessionRef.current?.reset();
-    sessionRef.current = null;
     setQuery("");
-    setSuggestions([]);
-    setError(null);
+    setMode("filtered");
+    setSelectionError(null);
+    // Defensive, alongside the fix in handleSelectSuggestion's
+    // existing-shop branch above — this component is never unmounted
+    // across "Change" (the parent only swaps which JSX branch renders
+    // via the selectedShop prop, this picker's own internal state
+    // persists the whole time), so "Change" is the one guaranteed
+    // moment to make certain the search input can never come back
+    // disabled for any reason.
+    setSelecting(false);
     onChange();
   }
 
@@ -201,12 +144,42 @@ export function GoogleShopPicker({ selectedShop, onSelect, onChange }: GoogleSho
           ))}
 
           {!searching && query.trim().length >= MIN_QUERY_LENGTH && suggestions.length === 0 && !error && (
-            <p className="px-3 py-6 text-center text-sm text-charcoal/40">No cafés found for &quot;{query}&quot;.</p>
+            <p className="px-3 py-4 text-center text-sm text-charcoal/40">
+              {mode === "filtered" ? "No café results found." : "No places found."}
+            </p>
           )}
           {query.trim().length > 0 && query.trim().length < MIN_QUERY_LENGTH && (
             <p className="px-3 py-4 text-center text-xs text-charcoal/30">Keep typing to search...</p>
           )}
         </div>
+
+        {/* Two-stage fallback: never switches automatically, only on a
+            real tap, and only shown once there's an active search to
+            widen in the first place. */}
+        {query.trim().length >= MIN_QUERY_LENGTH && (
+          <div className="mt-1.5 px-1">
+            {mode === "filtered" ? (
+              <button
+                type="button"
+                onClick={() => setMode("unrestricted")}
+                className="text-xs font-medium text-charcoal/50 underline-offset-2 hover:text-espresso hover:underline"
+              >
+                Can&apos;t find it? Search all places
+              </button>
+            ) : (
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-charcoal/40">Showing all places</p>
+                <button
+                  type="button"
+                  onClick={() => setMode("filtered")}
+                  className="text-xs font-medium text-charcoal/50 underline-offset-2 hover:text-espresso hover:underline"
+                >
+                  Back to café results
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {pendingPlace && (
