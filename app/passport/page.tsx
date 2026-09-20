@@ -16,9 +16,11 @@ import { Stamps } from "@/components/passport/stamps";
 import { PlacesExplored } from "@/components/passport/places-explored";
 import { evaluatePassportAchievements, getEarnedAchievements } from "@/lib/passport/actions";
 import { getMySaves } from "@/lib/profile/saved-actions";
+import { getFriendCount } from "@/lib/friends/actions";
 import {
   computeAchievementProgress,
   computePlacesExplored,
+  derivePassportAchievementStats,
   selectUpNext,
   toStampDisplayItems,
 } from "@/lib/passport/achievements";
@@ -44,6 +46,7 @@ interface FullLogRow {
   logged_at: string;
   shop: {
     name: string;
+    location_id: string | null;
     city: string | null;
     state: string | null;
     country: string | null;
@@ -82,18 +85,19 @@ export default async function PassportPage() {
   // it. Want to Try's count on this page needs the same
   // get_my_saves() the dedicated Want to Try page and the self-profile
   // Saved tab already call, not a second, parallel counting mechanism.
-  const [{ data: profile }, { data: rows }, savedItems] = await Promise.all([
+  const [{ data: profile }, { data: rows }, savedItems, friendCount] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).single<Profile>(),
     supabase
       .from("drink_logs")
       .select(
-        "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, photo_position_x, photo_position_y, temperature, created_at, logged_at, shop:shops(name,city,state,latitude,longitude,location:locations(id,city,region,country,latitude,longitude)), drink:drinks(name)"
+        "id, shop_id, drink_id, beverage_category, drink_rating, shop_rating, caption, photo_url, photo_position_x, photo_position_y, temperature, created_at, logged_at, shop:shops(name,location_id,city,state,country,latitude,longitude,location:locations(id,city,region,country,latitude,longitude)), drink:drinks(name)"
       )
       .eq("user_id", user.id)
       .order("logged_at", { ascending: false })
       .order("created_at", { ascending: false })
       .returns<FullLogRow[]>(),
     getMySaves(),
+    getFriendCount(user.id),
   ]);
 
   const logs = rows ?? [];
@@ -326,22 +330,9 @@ export default async function PassportPage() {
   }
   const earnedAchievements = await getEarnedAchievements();
 
-  const teaLogsCount = logs.filter((l) => l.beverage_category === "tea").length;
-  const uniqueCitiesCount = new Set(
-    logs
-      .filter((l) => l.shop?.city && l.shop?.state)
-      .map((l) => `${l.shop!.city!.toLowerCase().trim()}|${l.shop!.state!.toLowerCase().trim()}`)
-  ).size;
-  const achievementProgress = computeAchievementProgress(
-    {
-      totalLogs: logs.length,
-      coffeeLogs: coffeesLogged,
-      uniqueShops: cafesExplored,
-      uniqueCities: uniqueCitiesCount,
-      teaLogs: teaLogsCount,
-    },
-    earnedAchievements
-  );
+  const achievementStats = derivePassportAchievementStats(logs);
+  const uniqueCitiesCount = achievementStats.uniqueCities;
+  const achievementProgress = computeAchievementProgress(achievementStats, earnedAchievements);
   const upNextGoals = selectUpNext(achievementProgress);
   // UpNext is a server component (no "use client"), it can keep using
   // the full AchievementProgress objects directly, no serialization
@@ -383,6 +374,7 @@ export default async function PassportPage() {
                   cafesExplored,
                   citiesExplored: uniqueCitiesCount,
                   stampsEarned: earnedAchievements.size,
+                  friendsCount: friendCount,
                 }
               : null
           }

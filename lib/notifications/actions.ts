@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { createClient } from "@/lib/supabase/server";
 
 export interface NotificationItem {
@@ -106,4 +108,6 @@ export async function markAllNotificationsRead(): Promise<void> {
     console.error("mark_all_notifications_read failed:", error.message);
     throw new Error("Couldn't update your notifications.");
   }
+
+  revalidatePath("/activity");
 }

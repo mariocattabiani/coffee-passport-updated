@@ -4,6 +4,7 @@ import { MapPin, User, Pencil, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Profile } from "@/lib/supabase/types";
 import { signOut } from "@/lib/auth/actions";
+import { PassportFriendsStat } from "@/components/friends/passport-friends-stat";
 
 interface PassportHeaderStats {
   drinksLogged: number;
@@ -11,6 +12,7 @@ interface PassportHeaderStats {
   cafesExplored: number;
   citiesExplored: number;
   stampsEarned: number;
+  friendsCount: number;
 }
 
 interface PassportHeaderProps {
@@ -28,9 +30,9 @@ function yearOf(dateString: string | null | undefined): number | null {
   return Number.isNaN(year) ? null : year;
 }
 
-function SecondaryStat({ value, label }: { value: number; label: string }) {
+function GridStat({ value, label, className }: { value: number; label: string; className?: string }) {
   return (
-    <div>
+    <div className={className}>
       <p className="font-heading text-xl font-semibold text-crema sm:text-2xl">{value}</p>
       <p className="mt-0.5 text-[10px] uppercase tracking-wide text-crema/50">{label}</p>
     </div>
@@ -130,12 +132,11 @@ export function PassportHeader({ profile, stats, exploringSinceDate }: PassportH
           )}
         </div>
 
-        {/* PROGRESS, composed rather than four equal-weight tiles.
-            The "Latest stamp" panel that used to anchor the bottom of
-            this block was removed: the redesigned Stamps rail below
-            now surfaces the most recent stamp first with its own
-            "New" indicator, so showing it a second time here was
-            duplicate messaging and unused vertical space, not a
+        {/* PROGRESS. The "Latest stamp" panel that used to anchor the
+            bottom of this block was removed: the redesigned Stamps
+            rail below now surfaces the most recent stamp first with
+            its own "New" indicator, so showing it a second time here
+            was duplicate messaging and unused vertical space, not a
             second useful signal. */}
         {stats && (
           <div className="relative flex flex-col justify-center bg-espresso p-5 sm:p-6">
@@ -155,14 +156,47 @@ export function PassportHeader({ profile, stats, exploringSinceDate }: PassportH
               )}
             </div>
 
-            {/* SECONDARY ROW, smaller scale, separated by thin rules
-                rather than repeating the primary metric's treatment. */}
-            <div className="mt-4 flex items-start gap-5 border-t border-crema/10 pt-4">
-              <SecondaryStat value={stats.cafesExplored} label="Cafés" />
-              <div className="h-8 w-px bg-crema/15" aria-hidden="true" />
-              <SecondaryStat value={stats.citiesExplored} label="Cities" />
-              <div className="h-8 w-px bg-crema/15" aria-hidden="true" />
-              <SecondaryStat value={stats.stampsEarned} label="Stamps" />
+            {/* SECONDARY: a proper 2x2 grid rather than a single row
+                of three plus a small separate Friends line — that
+                arrangement left a visible gap on the right of the
+                panel wherever it had room to spare, and demoted
+                Friends to an afterthought instead of a real stat.
+                A 2x2 grid spans the panel's full width evenly and
+                gives all four stats identical visual weight.
+
+                Deliberately kept stacked below the primary stat at
+                every width, never side-by-side with it: this panel's
+                rendered width is set by the header's own 1.5fr/1fr
+                split inside a max-w-5xl page container, so it stays
+                in roughly the same ~280–390px range whether the
+                viewport is a narrow phone or a wide desktop monitor
+                (the outer grid only widens the page container, not
+                this panel's share of it). There's no reliable
+                breakpoint at which it's wide enough to fit the
+                4xl/5xl primary number beside a two-column grid
+                without cramping one or the other, so a single
+                stacked composition that's tuned for that width range
+                holds up consistently everywhere instead of guessing
+                at a container-query-style split we can't verify here. */}
+            <div className="mt-4 grid grid-cols-2 border-t border-crema/10 pt-4">
+              <GridStat
+                value={stats.cafesExplored}
+                label="Cafés"
+                className="border-r border-b border-crema/10 pb-3 pr-4"
+              />
+              <GridStat
+                value={stats.citiesExplored}
+                label="Cities"
+                className="border-b border-crema/10 pb-3 pl-4"
+              />
+              <GridStat
+                value={stats.stampsEarned}
+                label="Stamps"
+                className="border-r border-crema/10 pt-3 pr-4"
+              />
+              <div className="pt-3 pl-4">
+                {profile?.id && <PassportFriendsStat userId={profile.id} count={stats.friendsCount} />}
+              </div>
             </div>
           </div>
         )}

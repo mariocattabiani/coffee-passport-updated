@@ -13,7 +13,7 @@ import { RecentActivity } from "@/components/logs/recent-activity";
 import { ContinueYourPassport } from "@/components/dashboard/continue-your-passport";
 import { ExploreCta } from "@/components/dashboard/explore-cta";
 import { evaluatePassportAchievements, getEarnedAchievements } from "@/lib/passport/actions";
-import { computeAchievementProgress, selectUpNext } from "@/lib/passport/achievements";
+import { computeAchievementProgress, derivePassportAchievementStats, selectUpNext } from "@/lib/passport/achievements";
 import type { LogCardData } from "@/components/logs/log-card";
 
 export const metadata: Metadata = {
@@ -36,6 +36,22 @@ interface RecentLogRow {
   created_at: string;
   logged_at: string;
   shop: { name: string; city: string | null; state: string | null } | null;
+  drink: { name: string } | null;
+}
+
+interface AchievementLogRow {
+  shop_id: string;
+  beverage_category: BeverageCategory;
+  drink_rating: number;
+  caption: string | null;
+  photo_url: string | null;
+  temperature: Temperature | null;
+  shop: {
+    location_id: string | null;
+    city: string | null;
+    state: string | null;
+    country: string | null;
+  } | null;
   drink: { name: string } | null;
 }
 
@@ -63,16 +79,11 @@ export default async function DashboardPage() {
     supabase.from("profiles").select("*").eq("id", user.id).single<Profile>(),
     supabase
       .from("drink_logs")
-      .select("shop_id, drink_id, beverage_category, shop:shops(city,state)")
+      .select(
+        "shop_id, beverage_category, drink_rating, caption, photo_url, temperature, shop:shops(location_id,city,state,country), drink:drinks(name)"
+      )
       .eq("user_id", user.id)
-      .returns<
-        {
-          shop_id: string;
-          drink_id: string;
-          beverage_category: BeverageCategory;
-          shop: { city: string | null; state: string | null } | null;
-        }[]
-      >(),
+      .returns<AchievementLogRow[]>(),
     supabase
       .from("drink_logs")
       .select(
@@ -90,21 +101,11 @@ export default async function DashboardPage() {
   const coffeesLogged = allLogs.filter((l) => l.beverage_category === "coffee").length;
   const teasLogged = allLogs.filter((l) => l.beverage_category === "tea").length;
   const cafesVisited = new Set(allLogs.map((l) => l.shop_id)).size;
-  const uniqueDrinks = new Set(allLogs.map((l) => l.drink_id)).size;
+  const uniqueDrinks = new Set(allLogs.map((l) => l.drink?.name?.trim().toLowerCase()).filter(Boolean)).size;
 
   const earnedAchievements = await getEarnedAchievements();
   const achievementProgress = computeAchievementProgress(
-    {
-      totalLogs: allLogs.length,
-      coffeeLogs: coffeesLogged,
-      uniqueShops: cafesVisited,
-      uniqueCities: new Set(
-        allLogs
-          .filter((l) => l.shop?.city && l.shop?.state)
-          .map((l) => `${l.shop!.city!.toLowerCase().trim()}|${l.shop!.state!.toLowerCase().trim()}`)
-      ).size,
-      teaLogs: teasLogged,
-    },
+    derivePassportAchievementStats(allLogs),
     earnedAchievements
   );
   const closestGoal = selectUpNext(achievementProgress)[0] ?? null;

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Compass, MapPin, Plus, Store } from "lucide-react";
+import { Compass, MapPin, Navigation, Plus, Store } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ShareButton } from "@/components/shops/share-button";
 import { StarDisplay } from "@/components/logs/star-display";
 import type { Shop } from "@/lib/supabase/types";
 
@@ -11,97 +12,102 @@ interface ShopHeroProps {
   ratingCount: number;
 }
 
+function directionsUrl(shop: Shop): string {
+  const destination =
+    shop.latitude !== null && shop.longitude !== null
+      ? `${shop.latitude},${shop.longitude}`
+      : [shop.name, shop.address, shop.city, shop.state].filter(Boolean).join(", ");
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
+}
+
+const SECONDARY_ACTION_CLASSES =
+  "inline-flex items-center gap-1.5 rounded-lg border border-espresso/20 px-4 py-2 text-sm font-medium text-espresso transition-colors hover:bg-espresso/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-espresso focus-visible:ring-offset-2 focus-visible:ring-offset-crema";
+
 /**
- * A light, editorial destination hero, not a two-column card with a
- * dark half. The café name is the true focal point, a thin gold-to-
- * transparent rule marks it like a page spine, and the rating lives in
- * a small, intentionally-placed module rather than stretching across
- * half the panel. One faint ring in the corner (the same restrained
- * treatment already used on Passport) adds quiet depth without ever
- * becoming a repeating texture. Every line of supporting text sits on
- * a light background at full, readable contrast.
+ * V2.1: the SAME branded header for every café, with or without any
+ * community activity — no UGC photo band (a random public log photo
+ * isn't a business's identity, it belongs in "From the community"
+ * only) and no camera-icon placeholder for the no-photo case, since
+ * both of those looked unfinished and made cafés with no activity
+ * look broken. This one open, editorial block — no white card, no
+ * border, no shadow, just a bottom rule before the next section, per
+ * the "reduce card-heaviness" direction — replaces the previous
+ * photo-band + identity-card + large standalone rating module with a
+ * single compact section, so "What should I order?" arrives much
+ * sooner on mobile. The rating that used to be its own large brown
+ * module is now one inline line here instead.
  */
 export function ShopHero({ shop, avgRating, ratingCount }: ShopHeroProps) {
   const location = [shop.city, shop.state].filter(Boolean).join(", ");
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-white shadow-soft">
-      <div
-        className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full border-[14px] border-espresso/[0.04] sm:h-96 sm:w-96"
-        aria-hidden="true"
-      />
+    <div className="border-b border-border/60 pb-6 sm:pb-8">
+      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sage">Coffee Passport destination</p>
+      <div className="mt-1.5 h-0.5 w-8 rounded-full bg-gold" aria-hidden="true" />
 
-      <div className="relative flex flex-col gap-10 p-6 sm:p-10 lg:flex-row lg:items-start lg:justify-between lg:gap-12">
-        {/* IDENTITY */}
-        <div className="flex gap-5 lg:max-w-xl">
-          <div
-            className="hidden w-px shrink-0 self-stretch bg-gradient-to-b from-gold via-espresso/15 to-transparent sm:block"
-            aria-hidden="true"
-          />
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sage">
-              Coffee Passport destination
-            </p>
+      <h1 className="mt-3 font-heading text-3xl font-semibold leading-[1.1] text-espresso sm:text-4xl">
+        {shop.name}
+      </h1>
 
-            <h1 className="mt-2 font-heading text-4xl font-semibold leading-[1.05] text-espresso sm:text-5xl lg:text-6xl">
-              {shop.name}
-            </h1>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        {location && (
+          <span className="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide text-charcoal/70">
+            <Compass className="h-3.5 w-3.5 text-sage" />
+            {location}
+          </span>
+        )}
+        <span className="flex items-center gap-1.5 rounded-full border border-sage/30 bg-sage/[0.06] px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-sage">
+          <Store className="h-3 w-3" />
+          {shop.is_chain ? "Chain café" : "Independent café"}
+        </span>
+      </div>
 
-            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2">
-              {location && (
-                <span className="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide text-charcoal/70">
-                  <Compass className="h-3.5 w-3.5 text-sage" />
-                  {location}
-                </span>
-              )}
-              <span className="flex items-center gap-1.5 rounded-full border border-sage/30 bg-sage/[0.06] px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-sage">
-                <Store className="h-3 w-3" />
-                {shop.is_chain ? "Chain café" : "Independent café"}
-              </span>
-            </div>
+      {shop.address && (
+        <p className="mt-2 flex items-center gap-1.5 text-sm text-charcoal/60">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-charcoal/40" />
+          {shop.address}
+        </p>
+      )}
 
-            {shop.address && (
-              <p className="mt-2 flex items-center gap-1.5 text-sm text-charcoal/60">
-                <MapPin className="h-3.5 w-3.5 shrink-0 text-charcoal/40" />
-                {shop.address}
-              </p>
-            )}
+      {/* RATING: one compact inline line, not a standalone module. */}
+      <div className="mt-3 flex items-center gap-2">
+        {avgRating !== null ? (
+          <>
+            <span className="font-heading text-xl font-semibold text-espresso">{avgRating.toFixed(1)}</span>
+            <StarDisplay rating={avgRating} size="h-4 w-4" />
+            <span className="text-sm text-charcoal/60">
+              {ratingCount} {ratingCount === 1 ? "Passport rating" : "Passport ratings"}
+            </span>
+          </>
+        ) : ratingCount === 1 ? (
+          <span className="text-sm font-medium text-charcoal/60">
+            1 rating logged. More ratings needed for a community score.
+          </span>
+        ) : (
+          <span className="text-sm font-medium text-charcoal/60">Not rated yet</span>
+        )}
+      </div>
 
-            <Button asChild size="lg" className="mt-8 gap-2">
-              <Link href={`/log?shopId=${shop.id}`}>
-                <Plus className="h-4 w-4" />
-                Log a drink
-              </Link>
-            </Button>
-          </div>
-        </div>
-
-        {/* RATING, a self-contained module, not a stretched panel. */}
-        <div className="shrink-0 self-start lg:mt-1">
-          <div className="w-full rounded-2xl bg-espresso px-6 py-5 text-center shadow-card sm:w-52">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-crema/70">
-              Coffee Passport rating
-            </p>
-            {avgRating !== null ? (
-              <>
-                <p className="mt-2 font-heading text-4xl font-semibold text-crema">{avgRating.toFixed(1)}</p>
-                <div className="mt-2 flex justify-center">
-                  <StarDisplay rating={avgRating} size="h-3.5 w-3.5" />
-                </div>
-                <p className="mt-2 text-xs text-crema/70">
-                  {ratingCount} {ratingCount === 1 ? "rating" : "ratings"}
-                </p>
-              </>
-            ) : ratingCount === 1 ? (
-              <>
-                <p className="mt-3 font-heading text-base font-semibold text-crema">1 rating logged</p>
-                <p className="mt-1 text-xs text-crema/70">More ratings needed for a community score</p>
-              </>
-            ) : (
-              <p className="mt-3 font-heading text-base font-semibold text-crema">Not yet rated</p>
-            )}
-          </div>
-        </div>
+      {/* ACTIONS: one primary, two real secondary actions. No Save or
+          Website button — neither is backed by any actual data or
+          functionality yet. */}
+      <div className="mt-4 flex flex-wrap items-center gap-2.5">
+        <Button asChild className="gap-2">
+          <Link href={`/log?shopId=${shop.id}`}>
+            <Plus className="h-4 w-4" />
+            Log a drink
+          </Link>
+        </Button>
+        <a href={directionsUrl(shop)} target="_blank" rel="noopener noreferrer" className={SECONDARY_ACTION_CLASSES}>
+          <Navigation className="h-4 w-4" />
+          Directions
+        </a>
+        <ShareButton
+          title={shop.name}
+          text={`${shop.name} on Coffee Passport`}
+          url={`/shops/${shop.id}`}
+          className={SECONDARY_ACTION_CLASSES}
+        />
       </div>
     </div>
   );

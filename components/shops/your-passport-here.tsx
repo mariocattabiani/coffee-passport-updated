@@ -20,11 +20,12 @@ interface YourPassportHereProps {
 }
 
 /**
- * Same four stats as before, but "Visits logged" is the clear anchor,
- * a larger number with a small gold accent bar, the other three stay
- * secondary through smaller type and a plain top border rather than an
- * accent, not four identical boxes. Reuses LogCardColumns unchanged for
- * the history itself.
+ * Same four facts as before, logic untouched, but composed as one
+ * integrated card rather than four identical white boxes: "Visits
+ * logged" is the clear anchor (a larger number with a small gold
+ * accent bar, the same treatment PassportHeader's own primary stat
+ * uses), the other three sit beside it as a divided secondary row.
+ * Reuses LogCardColumns unchanged for the history itself.
  */
 export function YourPassportHere({ initialLogs, stats }: YourPassportHereProps) {
   const [logs, setLogs] = useState(initialLogs);
@@ -41,40 +42,42 @@ export function YourPassportHere({ initialLogs, stats }: YourPassportHereProps) 
 
       {stats ? (
         <>
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="relative overflow-hidden rounded-xl border border-border bg-white p-5 shadow-soft">
-              <div className="absolute inset-x-0 top-0 h-1 bg-gold" aria-hidden="true" />
-              <p className="font-heading text-3xl font-semibold text-espresso">{stats.logCount}</p>
+          <div className="mb-6 flex flex-col gap-6 rounded-2xl border border-border bg-white p-6 shadow-soft sm:flex-row sm:items-center">
+            <div className="relative shrink-0 pl-4 sm:pr-8">
+              <div className="absolute inset-y-0 left-0 w-1 rounded-full bg-gold" aria-hidden="true" />
+              <p className="font-heading text-4xl font-semibold text-espresso">{stats.logCount}</p>
               <p className="mt-0.5 text-xs font-medium text-charcoal/60">
                 {stats.logCount === 1 ? "Visit logged" : "Visits logged"}
               </p>
             </div>
 
-            <div className="rounded-xl border border-border bg-white p-5 shadow-soft">
-              {stats.avgOwnRating !== null ? (
-                <>
-                  <p className="font-heading text-xl font-semibold text-espresso">
-                    {stats.avgOwnRating.toFixed(1)}
-                  </p>
-                  <p className="mt-0.5 text-xs text-charcoal/60">Your avg rating</p>
-                </>
-              ) : (
-                <p className="text-sm text-charcoal/50">Not yet rated</p>
-              )}
-            </div>
+            <div className="grid grid-cols-3 divide-x divide-border/60 border-t border-border/60 pt-5 sm:border-l sm:border-t-0 sm:pl-8 sm:pt-0">
+              <div className="pr-3">
+                {stats.avgOwnRating !== null ? (
+                  <>
+                    <p className="font-heading text-xl font-semibold text-espresso">
+                      {stats.avgOwnRating.toFixed(1)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-charcoal/60">Your avg rating</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-charcoal/50">Not yet rated</p>
+                )}
+              </div>
 
-            <div className="rounded-xl border border-border bg-white p-5 shadow-soft">
-              <p className="font-heading text-xl font-semibold text-espresso">
-                {stats.mostRecentLoggedAt ? formatRelativeDate(stats.mostRecentLoggedAt) : "Never"}
-              </p>
-              <p className="mt-0.5 text-xs text-charcoal/60">Last visit</p>
-            </div>
+              <div className="px-3">
+                <p className="font-heading text-xl font-semibold text-espresso">
+                  {stats.mostRecentLoggedAt ? formatRelativeDate(stats.mostRecentLoggedAt) : "Never"}
+                </p>
+                <p className="mt-0.5 text-xs text-charcoal/60">Last visit</p>
+              </div>
 
-            <div className="rounded-xl border border-border bg-white p-5 shadow-soft">
-              <p className="truncate font-heading text-xl font-semibold text-espresso">
-                {stats.favoriteDrinkName ?? "Still exploring"}
-              </p>
-              <p className="mt-0.5 text-xs text-charcoal/60">Your favorite here</p>
+              <div className="pl-3">
+                <p className="line-clamp-2 break-words font-heading text-base font-semibold leading-snug text-espresso sm:text-lg">
+                  {stats.favoriteDrinkName ?? "Still exploring"}
+                </p>
+                <p className="mt-0.5 text-xs text-charcoal/60">Your favorite here</p>
+              </div>
             </div>
           </div>
 

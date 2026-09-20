@@ -20,6 +20,8 @@ export interface PublicProfile {
   publicCitiesVisited: number;
   favoriteDrinkName: string | null;
   favoriteShopName: string | null;
+  friendCount: number;
+  mutualFriendCount: number;
 }
 
 interface PublicProfileRow {
@@ -34,6 +36,8 @@ interface PublicProfileRow {
   public_cities_visited: number;
   favorite_drink_name: string | null;
   favorite_shop_name: string | null;
+  friend_count: number;
+  mutual_friend_count: number;
 }
 
 /** Returns null for a username that doesn't exist, the page turns that
@@ -60,6 +64,8 @@ export async function getPublicUserProfile(username: string): Promise<PublicProf
     publicCitiesVisited: row.public_cities_visited,
     favoriteDrinkName: row.favorite_drink_name,
     favoriteShopName: row.favorite_shop_name,
+    friendCount: row.friend_count,
+    mutualFriendCount: row.mutual_friend_count,
   };
 }
 

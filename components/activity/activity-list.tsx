@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Heart, MessageCircle, User } from "lucide-react";
 
 import { markNotificationRead, markAllNotificationsRead, type NotificationItem } from "@/lib/notifications/actions";
@@ -59,10 +60,19 @@ interface ActivityListProps {
  * anywhere — there's nothing left to show.
  */
 export function ActivityList({ initialItems }: ActivityListProps) {
+  const router = useRouter();
   const [items, setItems] = useState(initialItems);
-  const [markingAll, setMarkingAll] = useState(false);
 
-  const hasUnread = items.some((item) => item.readAt === null);
+  useEffect(() => {
+    if (!initialItems.some((item) => item.readAt === null)) return;
+
+    const readAt = new Date().toISOString();
+    setItems((current) => current.map((item) => (item.readAt === null ? { ...item, readAt } : item)));
+
+    void markAllNotificationsRead()
+      .then(() => router.refresh())
+      .catch(() => setItems(initialItems));
+  }, [initialItems, router]);
 
   async function handleRowClick(item: NotificationItem) {
     if (item.readAt === null) {
@@ -79,20 +89,6 @@ export function ActivityList({ initialItems }: ActivityListProps) {
     }
   }
 
-  async function handleMarkAllRead() {
-    if (markingAll || !hasUnread) return;
-    setMarkingAll(true);
-    const prev = items;
-    setItems((cur) => cur.map((i) => (i.readAt === null ? { ...i, readAt: new Date().toISOString() } : i)));
-    try {
-      await markAllNotificationsRead();
-    } catch {
-      setItems(prev);
-    } finally {
-      setMarkingAll(false);
-    }
-  }
-
   if (items.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-white/60 p-8 text-center">
@@ -105,19 +101,6 @@ export function ActivityList({ initialItems }: ActivityListProps) {
 
   return (
     <div>
-      {hasUnread && (
-        <div className="mb-3 flex justify-end">
-          <button
-            type="button"
-            onClick={handleMarkAllRead}
-            disabled={markingAll}
-            className="text-xs font-medium text-charcoal/50 hover:text-espresso"
-          >
-            Mark all as read
-          </button>
-        </div>
-      )}
-
       <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-soft">
         <div className="divide-y divide-border/60">
           {items.map((item) => {

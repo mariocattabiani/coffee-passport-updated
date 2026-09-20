@@ -22,6 +22,10 @@ interface CommentSectionProps {
    *  purely a UI decision, delete_comment enforces the real rule
    *  server-side regardless of what this component shows or hides. */
   ownerUserId: string;
+  /** The sheet needs a bounded internal scroller; the dedicated post
+   *  page uses natural document flow so its thread only grows with
+   *  actual content. */
+  layout?: "contained" | "natural";
   /** Called with the server's authoritative total comment count after
    *  a create or delete actually happens — never on load, since a
    *  loaded page's length is never guaranteed to equal the post's
@@ -52,7 +56,13 @@ interface ReplyTarget {
  * actual comment list, so opening a post's comments is the one moment
  * an extra request happens, once, for exactly the post being opened.
  */
-export function CommentSection({ logId, currentUserId, ownerUserId, onCountChange }: CommentSectionProps) {
+export function CommentSection({
+  logId,
+  currentUserId,
+  ownerUserId,
+  layout = "contained",
+  onCountChange,
+}: CommentSectionProps) {
   const [comments, setComments] = useState<CommentItem[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -290,8 +300,8 @@ export function CommentSection({ logId, currentUserId, ownerUserId, onCountChang
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+    <div className={`flex flex-col ${layout === "contained" ? "h-full min-h-0" : ""}`}>
+      <div className={layout === "contained" ? "min-h-0 flex-1 overflow-y-auto px-4 py-3" : "px-4 py-3"}>
         {hasMore && (
           <button
             type="button"
@@ -314,7 +324,7 @@ export function CommentSection({ logId, currentUserId, ownerUserId, onCountChang
         )}
 
         {!loadError && comments !== null && comments.length === 0 && (
-          <p className="py-6 text-center text-sm text-charcoal/40">No comments yet. Say something!</p>
+          <p className="py-4 text-center text-sm text-charcoal/40">No comments yet. Start the conversation.</p>
         )}
 
         <div className="space-y-4">

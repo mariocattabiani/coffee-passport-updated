@@ -105,7 +105,7 @@ export function CommentSheet({
       <div
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
-        className="flex h-[80vh] w-full max-w-lg min-w-0 flex-col rounded-t-2xl bg-white shadow-card sm:h-[70vh] sm:rounded-2xl"
+        className="flex h-[80dvh] w-full max-w-lg min-w-0 flex-col rounded-t-2xl bg-white shadow-card sm:h-[70dvh] sm:rounded-2xl"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="flex min-w-0 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-4 py-3">

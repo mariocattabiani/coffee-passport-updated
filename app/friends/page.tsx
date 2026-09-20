@@ -74,7 +74,12 @@ export default async function FriendsPage() {
         )}
 
         <section>
-          <h2 className="mb-3 font-heading text-lg font-semibold text-espresso">Friends</h2>
+          <h2 className="mb-3 font-heading text-lg font-semibold text-espresso">
+            Friends
+            {friends.length > 0 && (
+              <span className="text-sm font-normal text-charcoal/40"> ({friends.length})</span>
+            )}
+          </h2>
           {friends.length > 0 ? (
             <div className="space-y-2">
               {friends.map((f) => (

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { evaluatePassportAchievements, getEarnedAchievements } from "@/lib/passport/actions";
 import {
   computeAchievementProgress,
+  derivePassportAchievementStats,
   toStampDisplayItems,
   type StampDisplayItem,
 } from "@/lib/passport/achievements";
@@ -11,7 +12,17 @@ import {
 interface StampStatsLogRow {
   beverage_category: "coffee" | "tea";
   shop_id: string;
-  shop: { city: string | null; state: string | null } | null;
+  drink_rating: number;
+  caption: string | null;
+  photo_url: string | null;
+  temperature: "hot" | "iced" | null;
+  drink: { name: string } | null;
+  shop: {
+    location_id: string | null;
+    city: string | null;
+    state: string | null;
+    country: string | null;
+  } | null;
 }
 
 /**
@@ -33,7 +44,9 @@ export async function getMyStampItems(): Promise<StampDisplayItem[]> {
 
   const { data: rows, error } = await supabase
     .from("drink_logs")
-    .select("beverage_category, shop_id, shop:shops(city,state)")
+    .select(
+      "beverage_category, shop_id, drink_rating, caption, photo_url, temperature, drink:drinks(name), shop:shops(location_id,city,state,country)"
+    )
     .eq("user_id", user.id)
     .returns<StampStatsLogRow[]>();
 
@@ -52,25 +65,7 @@ export async function getMyStampItems(): Promise<StampDisplayItem[]> {
   }
   const earnedAchievements = await getEarnedAchievements();
 
-  const coffeeLogs = logs.filter((l) => l.beverage_category === "coffee").length;
-  const teaLogs = logs.filter((l) => l.beverage_category === "tea").length;
-  const uniqueShops = new Set(logs.map((l) => l.shop_id)).size;
-  const uniqueCities = new Set(
-    logs
-      .filter((l) => l.shop?.city && l.shop?.state)
-      .map((l) => `${l.shop!.city!.toLowerCase().trim()}|${l.shop!.state!.toLowerCase().trim()}`)
-  ).size;
-
-  const progress = computeAchievementProgress(
-    {
-      totalLogs: logs.length,
-      coffeeLogs,
-      uniqueShops,
-      uniqueCities,
-      teaLogs,
-    },
-    earnedAchievements
-  );
+  const progress = computeAchievementProgress(derivePassportAchievementStats(logs), earnedAchievements);
 
   return toStampDisplayItems(progress);
 }

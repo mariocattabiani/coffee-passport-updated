@@ -1,4 +1,5 @@
-import { User } from "lucide-react";
+import Link from "next/link";
+import { Camera, User } from "lucide-react";
 
 import { StarDisplay } from "@/components/logs/star-display";
 import { formatRelativeDate } from "@/lib/drink-logs/format";
@@ -25,24 +26,33 @@ export interface ShopActivityItem {
 
 interface WhatPeopleAreDrinkingProps {
   items: ShopActivityItem[];
+  shopId: string;
 }
 
 /**
- * Complementary to Top Drinks, not a replacement: Top Drinks answers
- * "what's best here", this answers "what does it actually look like".
- * Public logs only, the RPC behind this already filters that. A more
- * compact horizontal-scroll strip rather than full masonry, since this
- * is a secondary section on an already-composed page, not the main
- * event the way Discover is.
+ * Complementary to "What should I order?", not a replacement: that
+ * section answers "what's best here", this answers "what does it
+ * actually look like". Public logs only, the RPC behind this already
+ * filters that. A compact horizontal-scroll strip rather than full
+ * masonry, since this is a secondary section on an already-composed
+ * page, not the main event the way Discover is.
  */
-export function WhatPeopleAreDrinking({ items }: WhatPeopleAreDrinkingProps) {
+export function WhatPeopleAreDrinking({ items, shopId }: WhatPeopleAreDrinkingProps) {
   if (items.length === 0) {
     return (
       <section>
-        <h2 className="mb-4 font-heading text-xl font-semibold text-espresso">What people are drinking</h2>
-        <p className="rounded-xl border border-dashed border-border bg-white/60 p-6 text-center text-sm text-charcoal/60">
-          No public activity here yet.
-        </p>
+        <h2 className="mb-4 font-heading text-xl font-semibold text-espresso">From the community</h2>
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-white/60 px-6 py-8 text-center">
+          <Camera className="h-5 w-5 text-charcoal/30" aria-hidden="true" />
+          <p className="text-sm font-medium text-charcoal/70">No photos yet</p>
+          <p className="text-sm text-charcoal/50">Be the first to show what this café looks like.</p>
+          <Link
+            href={`/log?shopId=${shopId}`}
+            className="mt-1 text-sm font-medium text-espresso underline-offset-2 hover:underline"
+          >
+            Log with photo
+          </Link>
+        </div>
       </section>
     );
   }
@@ -50,7 +60,7 @@ export function WhatPeopleAreDrinking({ items }: WhatPeopleAreDrinkingProps) {
   return (
     <section>
       <div className="mb-4">
-        <h2 className="font-heading text-xl font-semibold text-espresso">What people are drinking</h2>
+        <h2 className="font-heading text-xl font-semibold text-espresso">From the community</h2>
         <p className="text-sm text-charcoal/60">Recent public logs from the Coffee Passport community</p>
       </div>
 
@@ -60,14 +70,14 @@ export function WhatPeopleAreDrinking({ items }: WhatPeopleAreDrinkingProps) {
           return (
             <div
               key={item.logId}
-              className="w-52 shrink-0 overflow-hidden rounded-xl border border-border bg-white shadow-soft"
+              className="w-44 shrink-0 overflow-hidden rounded-xl border border-border bg-white shadow-soft sm:w-52"
             >
               {item.photoUrl ? (
                 <div className="relative aspect-square w-full bg-charcoal/5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={item.photoUrl}
-                    alt=""
+                    alt={`${item.drinkName}, logged by ${displayName}`}
                     className="h-full w-full object-cover"
                     style={{ objectPosition: `${item.photoPositionX ?? 50}% ${item.photoPositionY ?? 50}%` }}
                   />

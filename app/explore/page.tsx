@@ -4,7 +4,12 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getDefaultExploreRegion, getDiscoveryResults } from "@/lib/explore/actions";
 import { evaluatePassportAchievements, getEarnedAchievements } from "@/lib/passport/actions";
-import { computeAchievementProgress, selectUpNext, toUpNextGoalDisplay } from "@/lib/passport/achievements";
+import {
+  computeAchievementProgress,
+  derivePassportAchievementStats,
+  selectUpNext,
+  toUpNextGoalDisplay,
+} from "@/lib/passport/achievements";
 import { AuthenticatedHeader } from "@/components/dashboard/authenticated-header";
 import { ExploreClient } from "@/components/explore/explore-client";
 import type { BeverageCategory } from "@/lib/supabase/types";
@@ -15,9 +20,18 @@ export const metadata: Metadata = {
 
 interface OwnLogStatRow {
   shop_id: string;
-  drink_id: string;
   beverage_category: BeverageCategory;
-  shop: { city: string | null; state: string | null } | null;
+  drink_rating: number;
+  caption: string | null;
+  photo_url: string | null;
+  temperature: "hot" | "iced" | null;
+  drink: { name: string } | null;
+  shop: {
+    location_id: string | null;
+    city: string | null;
+    state: string | null;
+    country: string | null;
+  } | null;
 }
 
 export default async function ExplorePage() {
@@ -34,7 +48,9 @@ export default async function ExplorePage() {
     getDefaultExploreRegion(),
     supabase
       .from("drink_logs")
-      .select("shop_id, drink_id, beverage_category, shop:shops(city,state)")
+      .select(
+        "shop_id, beverage_category, drink_rating, caption, photo_url, temperature, drink:drinks(name), shop:shops(location_id,city,state,country)"
+      )
       .eq("user_id", user.id)
       .returns<OwnLogStatRow[]>(),
   ]);
@@ -50,17 +66,7 @@ export default async function ExplorePage() {
 
   const allLogs = statRows ?? [];
   const achievementProgress = computeAchievementProgress(
-    {
-      totalLogs: allLogs.length,
-      coffeeLogs: allLogs.filter((l) => l.beverage_category === "coffee").length,
-      uniqueShops: new Set(allLogs.map((l) => l.shop_id)).size,
-      uniqueCities: new Set(
-        allLogs
-          .filter((l) => l.shop?.city && l.shop?.state)
-          .map((l) => `${l.shop!.city!.toLowerCase().trim()}|${l.shop!.state!.toLowerCase().trim()}`)
-      ).size,
-      teaLogs: allLogs.filter((l) => l.beverage_category === "tea").length,
-    },
+    derivePassportAchievementStats(allLogs),
     earnedAchievements
   );
   const upNextGoal = toUpNextGoalDisplay(selectUpNext(achievementProgress)[0] ?? null);

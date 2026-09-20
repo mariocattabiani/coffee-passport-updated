@@ -138,9 +138,12 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
             <div className="border-b border-border/60 px-4 py-3">
               <p className="text-sm font-medium text-charcoal">Comments</p>
             </div>
-            <div className="h-[60vh] min-h-[320px]">
-              <CommentSection logId={log.logId} currentUserId={user.id} ownerUserId={log.ownerUserId} />
-            </div>
+            <CommentSection
+              logId={log.logId}
+              currentUserId={user.id}
+              ownerUserId={log.ownerUserId}
+              layout="natural"
+            />
           </div>
         )}
       </main>

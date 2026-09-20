@@ -1,9 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Lock } from "lucide-react";
+import {
+  Award,
+  Camera,
+  Coffee,
+  Compass,
+  Layers3,
+  Lock,
+  Map,
+  MessageCircle,
+  Star,
+  Store,
+} from "lucide-react";
 
-import type { AchievementCategory, StampDisplayItem } from "@/lib/passport/achievements";
+import type { AchievementCategory, AchievementIcon, StampDisplayItem } from "@/lib/passport/achievements";
 import { formatRemainingPhrase } from "@/lib/passport/achievements";
 
 // Shape varies by category, so the collection reads as a real set of
@@ -12,9 +23,29 @@ import { formatRemainingPhrase } from "@/lib/passport/achievements";
 // exploration, a softened rectangle for city exploration.
 const SHAPE_BY_CATEGORY: Record<AchievementCategory, string> = {
   milestone: "rounded-full",
-  shop: "rounded-[50%/38%]",
-  city: "rounded-2xl",
+  explore: "rounded-[50%/38%]",
+  loyalty: "rounded-2xl",
+  content: "rounded-full",
   drink: "rounded-full",
+};
+
+const ICON_BY_NAME = {
+  coffee: Coffee,
+  cup: Coffee,
+  compass: Compass,
+  store: Store,
+  camera: Camera,
+  message: MessageCircle,
+  star: Star,
+  layers: Layers3,
+  map: Map,
+} satisfies Record<AchievementIcon, typeof Award>;
+
+const RARITY_STYLE = {
+  Common: "text-crema/65",
+  Uncommon: "text-sage",
+  Rare: "text-gold",
+  Legendary: "text-amber-200",
 };
 
 function formatShortDate(earnedAt: string): string {
@@ -27,10 +58,8 @@ function formatFullDate(earnedAt: string): string {
 
 interface StampCardProps {
   item: StampDisplayItem;
-  /** Shows a small "New" pill on the card's front face — only ever
-   *  true for the single most-recently-earned stamp, and only until
-   *  the person has visited Passport once since earning it (see
-   *  Stamps' localStorage-based seen-tracking). */
+  /** Shows a small NEW pill until the person opens the full stamps
+   *  collection, backed by passport_achievements.seen_at. */
   isNew?: boolean;
 }
 
@@ -54,6 +83,7 @@ export function StampCard({ item, isNew = false }: StampCardProps) {
   const [flipped, setFlipped] = useState(false);
   const shapeClass = SHAPE_BY_CATEGORY[item.category];
   const remaining = item.threshold - item.progress;
+  const Icon = ICON_BY_NAME[item.icon];
 
   return (
     <button
@@ -65,59 +95,70 @@ export function StampCard({ item, isNew = false }: StampCardProps) {
           ? `${item.name}, earned${isNew ? ", new" : ""}, tap for details`
           : `${item.name}, locked, tap for details`
       }
-      className="relative w-28 shrink-0 rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-espresso focus-visible:ring-offset-2"
+      className="relative w-32 shrink-0 rounded-2xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-espresso focus-visible:ring-offset-2"
       style={{ perspective: "1000px" }}
     >
       {isNew && (
-        <span className="absolute -right-1.5 -top-1.5 z-10 rounded-full bg-sage px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-crema shadow-soft">
+        <span className="absolute right-2 top-2 z-20 rounded-full bg-sage px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-white shadow-soft">
           New
         </span>
       )}
 
       <div
-        className={`relative h-28 w-28 transition-transform duration-500 motion-reduce:transition-none [transform-style:preserve-3d] ${
+        className={`relative h-40 w-32 transition-transform duration-500 motion-reduce:transition-none [transform-style:preserve-3d] ${
           flipped ? "[transform:rotateY(180deg)]" : ""
         }`}
       >
         {/* FRONT */}
         <div
-          className={`absolute inset-0 flex flex-col items-center justify-center border-2 px-2 text-center [backface-visibility:hidden] ${shapeClass} ${
-            item.earned ? "border-gold bg-espresso shadow-card" : "border-dashed border-charcoal/25 bg-white"
+          className={`absolute inset-0 flex flex-col items-center justify-center border-2 px-3 text-center [backface-visibility:hidden] ${shapeClass} ${
+            item.earned ? "border-gold/80 bg-espresso shadow-card" : "border-dashed border-charcoal/20 bg-crema/40"
           }`}
         >
           {item.earned ? (
             <>
-              <p className="text-xs font-semibold leading-tight text-crema">{item.name}</p>
-              <p className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.15em] text-gold">Earned</p>
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-gold/60 bg-crema/10">
+                <Icon className="h-6 w-6 text-gold" aria-hidden="true" />
+              </div>
+              <p className="text-sm font-semibold leading-tight text-crema">{item.name}</p>
+              <p className={`mt-2 text-[9px] font-semibold uppercase tracking-[0.16em] ${RARITY_STYLE[item.difficulty]}`}>
+                {item.difficulty}
+              </p>
               {item.earnedAt && <p className="mt-0.5 text-[9px] text-crema/60">{formatShortDate(item.earnedAt)}</p>}
             </>
           ) : (
             <>
-              <Lock className="h-4 w-4 text-charcoal/30" aria-hidden="true" />
-              <p className="mt-1.5 text-[10px] font-medium leading-tight text-charcoal/50">{item.name}</p>
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-charcoal/15 bg-white/70">
+                <Icon className="h-5 w-5 text-charcoal/25" aria-hidden="true" />
+              </div>
+              <p className="text-sm font-semibold leading-tight text-charcoal/55">{item.name}</p>
+              <div className="mt-2 flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-charcoal/35">
+                <Lock className="h-3 w-3" aria-hidden="true" />
+                {item.difficulty}
+              </div>
             </>
           )}
         </div>
 
         {/* BACK */}
         <div
-          className={`absolute inset-0 flex flex-col items-center justify-center border-2 px-2.5 text-center [backface-visibility:hidden] [transform:rotateY(180deg)] ${shapeClass} ${
-            item.earned ? "border-gold bg-espresso" : "border-charcoal/20 bg-white"
+          className={`absolute inset-0 flex flex-col items-center justify-center border-2 px-3 text-center [backface-visibility:hidden] [transform:rotateY(180deg)] ${shapeClass} ${
+            item.earned ? "border-gold bg-espresso" : "border-charcoal/20 bg-crema/40"
           }`}
         >
           {item.earned ? (
             <>
-              <p className="text-[11px] font-semibold leading-tight text-crema">{item.name}</p>
-              <p className="mt-1 text-[9px] leading-snug text-crema/70">{item.description}</p>
+              <p className="text-xs font-semibold leading-tight text-crema">{item.name}</p>
+              <p className="mt-2 text-[10px] leading-snug text-crema/75">{item.description}</p>
               {item.earnedAt && (
                 <p className="mt-1.5 text-[8px] font-medium text-gold">Earned {formatFullDate(item.earnedAt)}</p>
               )}
             </>
           ) : (
             <>
-              <p className="text-[11px] font-semibold leading-tight text-charcoal">{item.name}</p>
-              <p className="mt-1 text-[9px] leading-snug text-charcoal/60">{item.description}</p>
-              <p className="mt-1.5 text-[10px] font-semibold text-sage">
+              <p className="text-xs font-semibold leading-tight text-charcoal">{item.name}</p>
+              <p className="mt-2 text-[10px] leading-snug text-charcoal/60">{item.description}</p>
+              <p className="mt-2 text-[10px] font-semibold text-sage">
                 {item.progress} of {item.threshold} {item.progressUnitPlural}
               </p>
               {remaining > 0 && (
