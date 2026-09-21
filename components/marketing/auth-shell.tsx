@@ -29,7 +29,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
             &quot;What should I order here?&quot;
           </p>
           <p className="max-w-sm text-sm text-crema/60">
-            Every cup you log becomes part of your coffee journey — and helps
+            Every cup you log becomes part of your coffee journey, and helps
             the people around you order better too.
           </p>
         </div>

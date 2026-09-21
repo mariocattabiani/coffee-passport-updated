@@ -18,9 +18,16 @@ const fontBody = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Coffee Passport — What should I order here?",
+  title: "Coffee Passport: Discover cafés, know what to order, log every cup",
   description:
-    "Coffee Passport helps you discover the best drinks, see what friends order, and build your own coffee journey — one cup at a time.",
+    "Coffee Passport is a social app for coffee and tea people. Discover cafés, see what to order, log every drink, and build a Passport of the places that shaped your taste.",
+  openGraph: {
+    title: "Coffee Passport",
+    description:
+      "Discover cafés, know what to order, and log every cup. Build your Coffee Passport and see what your friends love.",
+    siteName: "Coffee Passport",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

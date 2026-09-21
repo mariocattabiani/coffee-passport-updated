@@ -18,8 +18,8 @@ const drinks: DrinkCard[] = [
     tag: "Trending",
   },
   {
-    src: "/images/log-latte-art.jpg",
-    drink: "Vanilla Latte",
+    src: "/images/drink-pumpkin-pancake-cold-brew.jpg",
+    drink: "Pumpkin Pancake Cold Brew",
     shop: "The Marble Bar",
     rating: 4.8,
   },
@@ -31,8 +31,8 @@ const drinks: DrinkCard[] = [
     tag: "Friends' pick",
   },
   {
-    src: "/images/texture-machine-detail.jpg",
-    drink: "Classic Cortado",
+    src: "/images/drink-green-tea.jpg",
+    drink: "Green Tea",
     shop: "Nine Bar Coffee",
     rating: 4.7,
   },

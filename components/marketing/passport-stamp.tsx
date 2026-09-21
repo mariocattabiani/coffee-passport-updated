@@ -21,7 +21,7 @@ interface PassportStampProps {
  */
 export function PassportStamp({
   label = "COFFEE PASSPORT",
-  sublabel = "EST. 2026",
+  sublabel = "SIP BY SIP",
   className,
   backing = false,
   backingColor = "#FAF8F4",

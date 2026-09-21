@@ -41,10 +41,20 @@ function StarTrail() {
 const cardBase =
   "relative flex flex-col justify-between overflow-hidden rounded-xl border border-border/60 p-6 shadow-soft";
 
+const TRENDING_NEAR_YOU = [
+  { drink: "Iced Oat Cortado", shop: "Fern & Bloom", rating: 4.8 },
+  { drink: "Ethiopian Pour-Over", shop: "Northside Roasters", rating: 4.6 },
+];
+
 export function FeatureBento() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2">
-      {/* Discover — the anchor card, spans two columns */}
+      {/* Discover, the anchor card, spans two columns and two rows.
+          V2.1: filled the previously-empty middle of this tall card
+          with a compact "Trending near you" preview (two real-shaped
+          drink rows) on top of the existing friend's-pick panel, so
+          the card reads as an actual product surface rather than a
+          headline with a lot of blank brown space beneath it. */}
       <div className={cn(cardBase, "bg-espresso text-crema lg:col-span-2 lg:row-span-2")}>
         <div>
           <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-crema/15">
@@ -56,11 +66,32 @@ export function FeatureBento() {
             actually worth trying before you get in line.
           </p>
         </div>
-        <div className="mt-8 rounded-lg bg-crema/10 p-3">
-          <p className="text-[11px] uppercase tracking-wide text-crema/50">Friends&apos; pick this week</p>
-          <p className="mt-1 text-sm font-medium">Honey Lavender Latte</p>
-          <div className="mt-1.5">
-            <StarTrail />
+
+        <div className="mt-6 space-y-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-crema/50">Trending near you</p>
+            <div className="mt-2 space-y-1.5">
+              {TRENDING_NEAR_YOU.map((item) => (
+                <div key={item.drink} className="flex items-center justify-between gap-3 rounded-lg bg-crema/10 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{item.drink}</p>
+                    <p className="truncate text-xs text-crema/50">{item.shop}</p>
+                  </div>
+                  <span className="flex shrink-0 items-center gap-1 text-xs text-crema/70">
+                    <Star className="h-3 w-3 fill-gold text-gold" />
+                    {item.rating}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-crema/10 p-3">
+            <p className="text-[11px] uppercase tracking-wide text-crema/50">Sarah&apos;s pick this week</p>
+            <p className="mt-1 text-sm font-medium">Honey Lavender Latte</p>
+            <div className="mt-1.5">
+              <StarTrail />
+            </div>
           </div>
         </div>
       </div>
