@@ -5,8 +5,55 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import type { BeverageCategory, Drink, Temperature } from "@/lib/supabase/types";
+import { evaluatePassportAchievements } from "@/lib/passport/actions";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Achievement evaluation happens HERE — as a write-time side effect
+ * of the mutation that could actually change qualification — rather
+ * than on every Dashboard/Explore/Passport/Stamps page read. See the
+ * Achievement Performance Remediation report for the full rationale.
+ *
+ * evaluatePassportAchievements() now THROWS on a genuine Supabase RPC
+ * error rather than swallowing it into an empty array (see its own
+ * comment in lib/passport/actions.ts) — this wrapper is what catches
+ * that. A failed evaluation must never fail the drink log mutation it
+ * rode in on: the log itself already saved successfully in the
+ * database by the time this runs, so an achievement side effect
+ * failing here is logged and swallowed, never surfaced to the person
+ * as an error, and never blocks the redirect createDrinkLog/
+ * updateDrinkLog end with.
+ *
+ * RECOVERY: no retry queue, no "needs evaluation" flag/table — that
+ * would be more machinery than this stage of the app needs.
+ * evaluate_passport_achievements() re-scans the CALLING USER'S FULL
+ * current drink_logs history every time it runs, not just what
+ * changed in this one mutation, and every award it makes is already
+ * ON CONFLICT (user_id, achievement_key) DO NOTHING. So if this call
+ * fails (network blip, momentary DB hiccup) and a qualifying stamp is
+ * missed, it isn't lost: the very next successful create, or the next
+ * achievement-relevant edit (see the relevance check in
+ * updateDrinkLog below), re-runs this same full-history scan and
+ * inserts whatever was missed, exactly as if the failed attempt had
+ * never happened. The only gap this leaves is a user who never logs
+ * or edits again after a failed evaluation — the same edge case the
+ * one-time retroactive script (supabase/passport_achievements_ensure_
+ * evaluated.sql) already exists to catch, and that script can be
+ * rerun safely at any time for exactly this reason if it's ever
+ * needed again, since every insert it makes is the same idempotent
+ * ON CONFLICT DO NOTHING.
+ */
+async function evaluateAchievementsBestEffort(): Promise<void> {
+  try {
+    await evaluatePassportAchievements();
+  } catch (err) {
+    // Server-side only. The person already got their successful log
+    // save — an achievement side effect failing behind the scenes is
+    // never something they should see a scary error for.
+    console.error("evaluatePassportAchievements (write-time) failed:", err);
+  }
+}
 
 const UNIQUE_VIOLATION = "23505";
 const VALID_RATINGS = new Set([0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]);
@@ -375,6 +422,15 @@ export async function createDrinkLog(input: CreateDrinkLogInput) {
   // on for /dashboard here, just pointed at one more path.
   revalidatePath("/dashboard");
   revalidatePath("/discover");
+
+  // Write-time achievement evaluation: a brand-new log is exactly the
+  // one mutation every achievement rule cares about (first_sip,
+  // passport_sampler, coffee_25, first_latte, and everything else in
+  // evaluate_passport_achievements() reads drink_logs, and this just
+  // added one). Runs once, right here, instead of being deferred to
+  // whichever page the person happens to land on next.
+  await evaluateAchievementsBestEffort();
+
   redirect("/discover");
 }
 
@@ -421,13 +477,22 @@ export async function updateDrinkLog(logId: string, input: UpdateDrinkLogInput) 
   }
 
   // The database is the source of truth for what photo (if any) this
-  // log currently has, never a value supplied by the browser.
+  // log currently has, never a value supplied by the browser. Also
+  // pulls the other fields evaluate_passport_achievements() actually
+  // reads (drink_rating, temperature, caption) so the write can tell,
+  // right below, whether this specific edit could change anything an
+  // achievement cares about — see ACHIEVEMENT RELEVANCE below.
   const { data: existing } = await supabase
     .from("drink_logs")
-    .select("photo_url")
+    .select("photo_url, drink_rating, temperature, caption")
     .eq("id", logId)
     .eq("user_id", user.id)
-    .maybeSingle<{ photo_url: string | null }>();
+    .maybeSingle<{
+      photo_url: string | null;
+      drink_rating: number;
+      temperature: Temperature | null;
+      caption: string | null;
+    }>();
 
   if (!existing) {
     return { error: "That log couldn't be found." };
@@ -519,10 +584,60 @@ export async function updateDrinkLog(logId: string, input: UpdateDrinkLogInput) 
     await removePhoto(supabase, existingPhotoPath);
   }
 
+  // ACHIEVEMENT RELEVANCE: updateDrinkLog never lets the drink, shop,
+  // or beverage category change (there's no drink_id/shop_id in
+  // UpdateDrinkLogInput or updatePayload above — only a brand-new log
+  // can change which drink/shop/category is on record), so those
+  // count-based rules (coffee_25, shop_explorer_5, first_latte,
+  // passport_sampler, state_lines, and the rest that key off shop/
+  // drink/category) can never newly qualify from an edit. What CAN
+  // change here, and what evaluate_passport_achievements() actually
+  // reads, is: drink_rating (perfect_score), temperature (hot_and_
+  // cold), and whether a photo/caption now exists where one didn't
+  // (first_photo/photo_10/first_caption). Only re-run the evaluator
+  // when one of those specifically changed — an edit that only
+  // touches price, size, visibility, or the logged date never affects
+  // qualification, so it skips evaluation entirely rather than paying
+  // for a scan that can't possibly change anything.
+  const newHasPhoto = newPhotoPath ? true : input.removePhoto ? false : existingPhotoPath !== null;
+  const oldHasPhoto = existingPhotoPath !== null;
+  const captionChanged = (existing.caption ?? "") !== (input.caption ?? "");
+  const achievementRelevantChange =
+    existing.drink_rating !== input.drinkRating ||
+    existing.temperature !== input.temperature ||
+    newHasPhoto !== oldHasPhoto ||
+    captionChanged;
+
+  if (achievementRelevantChange) {
+    await evaluateAchievementsBestEffort();
+  }
+
   revalidatePath("/dashboard");
   redirect("/dashboard");
 }
 
+/**
+ * Deliberately does NOT call evaluate_passport_achievements() (or
+ * anything achievement-related) after the delete below. Two separate
+ * reasons, both load-bearing:
+ *
+ * 1. No achievement is ever revoked — passport_achievements rows are
+ *    append-only (see evaluate_passport_achievements() and
+ *    mark_passport_achievements_seen() in supabase/passport_
+ *    achievements_v2.sql: inserts only, no delete/update path exists
+ *    anywhere in this schema for an earned row). Removing a log can
+ *    only ever reduce a count, never newly cross a threshold, so
+ *    there is nothing a re-run of the awarding evaluator could do
+ *    here — it would just re-scan drink_logs to reconfirm rows that
+ *    already exist.
+ * 2. Locked-stamp PROGRESS (the "3 of 5 unique cafés" style display)
+ *    isn't cached anywhere — computeAchievementProgress/
+ *    derivePassportAchievementStats (lib/passport/achievements.ts)
+ *    derive it fresh from whatever the current page's own drink_logs
+ *    query returns. Once this row is gone, the very next read of
+ *    Dashboard/Explore/Passport/Stamps already reflects the deletion
+ *    with no extra step required here.
+ */
 export async function deleteDrinkLog(logId: string) {
   const supabase = await createClient();
   const {

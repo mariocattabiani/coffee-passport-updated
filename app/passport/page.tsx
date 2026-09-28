@@ -6,7 +6,7 @@ import type { Profile, BeverageCategory, Temperature } from "@/lib/supabase/type
 import { AuthenticatedHeader } from "@/components/dashboard/authenticated-header";
 import { PassportHeader } from "@/components/passport/passport-header";
 import { PassportLibraryLinks } from "@/components/passport/passport-library-links";
-import { TravelMap, type TravelMapPoint } from "@/components/maps/travel-map";
+import { TravelMap } from "@/components/maps/travel-map";
 import { FavoritesSection, type FavoriteSummary } from "@/components/passport/favorites-section";
 import { PassportStyleSummary } from "@/components/passport/passport-style-summary";
 import { PassportHistory } from "@/components/passport/passport-history";
@@ -14,7 +14,7 @@ import { PassportEmptyState } from "@/components/passport/passport-empty-state";
 import { UpNext } from "@/components/passport/up-next";
 import { Stamps } from "@/components/passport/stamps";
 import { PlacesExplored } from "@/components/passport/places-explored";
-import { evaluatePassportAchievements, getEarnedAchievements } from "@/lib/passport/actions";
+import { getEarnedAchievements } from "@/lib/passport/actions";
 import { getMySaves } from "@/lib/profile/saved-actions";
 import { getFriendCount } from "@/lib/friends/actions";
 import {
@@ -24,6 +24,15 @@ import {
   selectUpNext,
   toStampDisplayItems,
 } from "@/lib/passport/achievements";
+import {
+  derivePassportBasicStats,
+  deriveEarliestLoggedAt,
+  deriveFavoriteDrink,
+  deriveFavoriteShop,
+  derivePassportLocationMap,
+  deriveTemperaturePreference,
+} from "@/lib/passport/passport-stats";
+import { signDrinkPhotoPaths } from "@/lib/storage/sign-photos";
 import type { LogCardData } from "@/components/logs/log-card";
 
 export const metadata: Metadata = {
@@ -55,14 +64,6 @@ interface FullLogRow {
     location: { id: string; city: string; region: string | null; country: string; latitude: number; longitude: number } | null;
   } | null;
   drink: { name: string } | null;
-}
-
-interface Aggregate {
-  key: string;
-  name: string;
-  subtitle: string;
-  count: number;
-  ratingSum: number;
 }
 
 export default async function PassportPage() {
@@ -104,16 +105,11 @@ export default async function PassportPage() {
 
   // Resolve every photo in one batched call, whether it ends up used in
   // the history grid or reused as a favorite's thumbnail below.
-  const photoPaths = logs.map((l) => l.photo_url).filter((p): p is string => !!p);
-  const signedUrlByPath = new Map<string, string>();
-  if (photoPaths.length > 0) {
-    const { data: signed } = await supabase.storage
-      .from("drink-photos")
-      .createSignedUrls(photoPaths, 3600);
-    signed?.forEach((s) => {
-      if (s.signedUrl && !s.error) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    });
-  }
+  const signedUrlByPath = await signDrinkPhotoPaths(
+    supabase,
+    logs.map((l) => l.photo_url),
+    3600
+  );
 
   const historyLogs: LogCardData[] = logs.map((l) => ({
     id: l.id,
@@ -147,187 +143,63 @@ export default async function PassportPage() {
   }));
 
   // STATS
-  const coffeesLogged = logs.filter((l) => l.beverage_category === "coffee").length;
-  const teasLogged = logs.filter((l) => l.beverage_category === "tea").length;
-  const cafesExplored = new Set(logs.map((l) => l.shop_id)).size;
+  const { coffeesLogged, teasLogged, cafesExplored } = derivePassportBasicStats(logs);
 
-  // FAVORITES: most-logged wins, tie-broken by average rating, then
-  // alphabetically, so the result is always deterministic. This
-  // aggregate only ranks winners (key/count/rating) — it deliberately
-  // does not track photos/subtitle-of-record for the favorite drink
-  // anymore; see favoriteDrinkLog below for why that has to be looked
-  // up separately, from the specific representative log, rather than
-  // "whichever log happened to be scanned first".
-  function buildAggregate(
-    getKey: (l: FullLogRow) => string,
-    getName: (l: FullLogRow) => string,
-    getSubtitle: (l: FullLogRow) => string,
-    getRating: (l: FullLogRow) => number
-  ): Aggregate | null {
-    const map = new Map<string, Aggregate>();
-    for (const l of logs) {
-      const key = getKey(l);
-      const existing = map.get(key);
-      if (existing) {
-        existing.count += 1;
-        existing.ratingSum += getRating(l);
-      } else {
-        map.set(key, {
-          key,
-          name: getName(l),
-          subtitle: getSubtitle(l),
-          count: 1,
-          ratingSum: getRating(l),
-        });
-      }
-    }
-    const sorted = [...map.values()].sort((a, b) => {
-      if (b.count !== a.count) return b.count - a.count;
-      const avgA = a.ratingSum / a.count;
-      const avgB = b.ratingSum / b.count;
-      if (avgB !== avgA) return avgB - avgA;
-      return a.name.localeCompare(b.name);
-    });
-    return sorted[0] ?? null;
-  }
-
-  const favoriteDrinkAgg = buildAggregate(
-    (l) => l.drink_id,
-    (l) => l.drink?.name ?? "Unknown drink",
-    (l) => l.shop?.name ?? "",
-    (l) => l.drink_rating
-  );
-  const favoriteShopAgg = buildAggregate(
-    (l) => l.shop_id,
-    (l) => l.shop?.name ?? "Unknown shop",
-    (l) => [l.shop?.city, l.shop?.state].filter(Boolean).join(", "),
-    (l) => l.shop_rating
-  );
-
-  // The favorite drink's representative log is looked up separately
-  // from the ranking aggregate above, deliberately: buildAggregate's
-  // own photoUrl is "the first photo found while scanning newest-
-  // first", but its subtitle (café name) is fixed to whichever log
-  // was encountered FIRST for that drink_id, which is the most recent
-  // log overall, not necessarily the one that supplied the photo. If
-  // the newest log of a favorite drink has no photo but an older one
-  // does, the two would silently mismatch — a photo from café A shown
-  // next to café B's name. logs is already sorted newest-first (see
-  // the query above), so .find() naturally returns the most recent
-  // match for each rule below, with no extra query.
-  //
-  // Matched by NORMALIZED DRINK NAME, not drink_id: public.drinks is
-  // shop-scoped (shop_id not null — see drink_logging_schema.sql), so
-  // "Green Tea" logged at two different cafés is genuinely two
-  // different drink_id rows. favoriteDrinkAgg's WINNING key is still
-  // exactly one of those drink_id rows (favorite-drink calculation is
-  // unchanged), but restricting the representative-photo search to
-  // that one drink_id would miss real photos of the same drink logged
-  // at a different café — exactly the bug this fixes. Matching by name
-  // instead finds any log of the same drink the user actually
-  // recognizes as "their favorite", regardless of which café's
-  // specific drink record produced it.
-  const favoriteDrinkName = favoriteDrinkAgg?.name.trim().toLowerCase() ?? null;
-  const favoriteDrinkLog = favoriteDrinkName
-    ? logs.find((l) => (l.drink?.name ?? "").trim().toLowerCase() === favoriteDrinkName && l.photo_url) ??
-      logs.find((l) => (l.drink?.name ?? "").trim().toLowerCase() === favoriteDrinkName) ??
-      null
-    : null;
-
-  const favoriteDrink: FavoriteSummary | null = favoriteDrinkAgg
+  // FAVORITES, HOT VS ICED: the underlying calculations moved to
+  // lib/passport/passport-stats.ts (deriveFavoriteDrink,
+  // deriveFavoriteShop, deriveTemperaturePreference) — same ranking,
+  // same tie-breaks, same representative-photo-by-normalized-name
+  // matching, unchanged. Pure functions can't create a signed URL
+  // (that needs this page's own server-side Supabase client), so
+  // deriveFavoriteDrink returns the winning log's raw Storage path
+  // instead, resolved against signedUrlByPath here exactly as before.
+  const favoriteDrinkResult = deriveFavoriteDrink(logs);
+  const favoriteDrink: FavoriteSummary | null = favoriteDrinkResult
     ? {
-        title: favoriteDrinkAgg.name,
-        subtitle: favoriteDrinkLog?.shop?.name ?? favoriteDrinkAgg.subtitle,
-        rating: Math.round((favoriteDrinkAgg.ratingSum / favoriteDrinkAgg.count) * 10) / 10,
-        photoUrl: favoriteDrinkLog?.photo_url
-          ? signedUrlByPath.get(favoriteDrinkLog.photo_url) ?? null
+        title: favoriteDrinkResult.title,
+        subtitle: favoriteDrinkResult.subtitle,
+        rating: favoriteDrinkResult.rating,
+        photoUrl: favoriteDrinkResult.photoPath
+          ? signedUrlByPath.get(favoriteDrinkResult.photoPath) ?? null
           : null,
-        photoPositionX: favoriteDrinkLog?.photo_position_x ?? null,
-        photoPositionY: favoriteDrinkLog?.photo_position_y ?? null,
-        logCount: favoriteDrinkAgg.count,
-      }
-    : null;
-  const favoriteShop: FavoriteSummary | null = favoriteShopAgg
-    ? {
-        title: favoriteShopAgg.name,
-        subtitle: favoriteShopAgg.subtitle,
-        rating: Math.round((favoriteShopAgg.ratingSum / favoriteShopAgg.count) * 10) / 10,
-        photoUrl: null,
-        logCount: favoriteShopAgg.count,
-        shopId: favoriteShopAgg.key,
+        photoPositionX: favoriteDrinkResult.photoPositionX,
+        photoPositionY: favoriteDrinkResult.photoPositionY,
+        logCount: favoriteDrinkResult.logCount,
       }
     : null;
 
-  // HOT VS ICED: only from logs where temperature was actually set.
-  const tempLogs = logs.filter((l) => l.temperature !== null);
-  const hotCount = tempLogs.filter((l) => l.temperature === "hot").length;
-  const hotIced =
-    tempLogs.length > 0
-      ? {
-          hotPercent: Math.round((hotCount / tempLogs.length) * 100),
-          icedPercent: Math.round(((tempLogs.length - hotCount) / tempLogs.length) * 100),
-        }
-      : null;
+  const favoriteShopResult = deriveFavoriteShop(logs);
+  const favoriteShop: FavoriteSummary | null = favoriteShopResult
+    ? {
+        title: favoriteShopResult.title,
+        subtitle: favoriteShopResult.subtitle,
+        rating: favoriteShopResult.rating,
+        photoUrl: null,
+        logCount: favoriteShopResult.logCount,
+        shopId: favoriteShopResult.shopId,
+      }
+    : null;
+
+  const hotIced = deriveTemperaturePreference(logs);
 
   // COFFEE MAP: aggregated by CANONICAL LOCATION (city), not by
-  // individual shop — several cafés in the same city produce ONE dot
-  // with a combined café/drink count, matching the "one dot per city"
-  // product direction. A shop only contributes here if it has a
-  // resolved location_id (see location_model.sql/location_backfill.sql)
-  // — its own latitude/longitude (which almost no shop has) are never
-  // read for this anymore. This was the actual bug: a shop with a real
-  // city/state and NO coordinates used to be silently excluded from
-  // the map entirely while still counting everywhere else on this
-  // page, which is exactly why a user with genuine PA/Virginia Beach/
-  // Italy activity could see it in their own history but not on their
-  // own map.
-  const locationMapAgg = new Map<
-    string,
-    { locationId: string; city: string; region: string | null; country: string; latitude: number; longitude: number; shopIds: Set<string>; drinkCount: number }
-  >();
-  for (const l of logs) {
-    const location = l.shop?.location;
-    if (!location) continue;
-    const existing = locationMapAgg.get(location.id);
-    if (existing) {
-      existing.shopIds.add(l.shop_id);
-      existing.drinkCount += 1;
-    } else {
-      locationMapAgg.set(location.id, {
-        locationId: location.id,
-        city: location.city,
-        region: location.region,
-        country: location.country,
-        latitude: location.latitude,
-        longitude: location.longitude,
-        shopIds: new Set([l.shop_id]),
-        drinkCount: 1,
-      });
-    }
-  }
-  const mapPoints: TravelMapPoint[] = [...locationMapAgg.values()].map((p) => ({
-    locationId: p.locationId,
-    city: p.city,
-    region: p.region,
-    country: p.country,
-    latitude: p.latitude,
-    longitude: p.longitude,
-    cafeCount: p.shopIds.size,
-    drinkCount: p.drinkCount,
-  }));
-  const mapCafeCount = [...locationMapAgg.values()].reduce((sum, p) => sum + p.shopIds.size, 0);
+  // individual shop — the full derivation, tie-breaks, and the
+  // location_id-only inclusion rule live in
+  // lib/passport/passport-stats.ts's derivePassportLocationMap now;
+  // see that function's own comment for the "why" (matches the "one
+  // dot per city" product direction, and the PA/Virginia Beach/Italy
+  // bug this shape specifically fixes).
+  const { points: mapPoints, cafeCount: mapCafeCount } = derivePassportLocationMap(logs);
 
   const hasLogs = logs.length > 0;
 
-  // ACHIEVEMENTS: evaluate_passport_achievements() independently
-  // re-derives qualification from drink_logs itself server-side, this
-  // call never sends an achievement key, there's nothing here for a
-  // client to manipulate. Runs on every Passport visit, idempotent via
-  // the unique constraint, so a normal repeat visit with nothing newly
-  // earned is a harmless no-op.
-  if (hasLogs) {
-    await evaluatePassportAchievements();
-  }
+  // ACHIEVEMENTS: evaluate_passport_achievements() no longer runs here.
+  // It now runs as a write-time side effect of createDrinkLog /
+  // updateDrinkLog (see lib/drink-logs/actions.ts) — by the time a log
+  // exists for this page to read, it has already been evaluated once,
+  // there. Passport (like Dashboard, Explore, and Passport/Stamps) is a
+  // pure read here: earned achievements plus progress derived from the
+  // current log history, never a trigger for evaluation itself.
   const earnedAchievements = await getEarnedAchievements();
 
   const achievementStats = derivePassportAchievementStats(logs);
@@ -348,9 +220,7 @@ export default async function PassportPage() {
   // EXPLORING SINCE: the earliest logged_at across the user's history,
   // this is what lets a backdated log move the date earlier, falling
   // back to account creation only if there's no history at all yet.
-  const earliestLoggedAt = hasLogs
-    ? logs.reduce((earliest, l) => (l.logged_at < earliest ? l.logged_at : earliest), logs[0].logged_at)
-    : null;
+  const earliestLoggedAt = deriveEarliestLoggedAt(logs);
 
   // Map-specific city count is now simply mapPoints.length: since
   // mapPoints is already aggregated one-row-per-canonical-location,

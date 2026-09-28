@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 import { createClient } from "@/lib/supabase/server";
 import { getDefaultExploreRegion, getDiscoveryResults } from "@/lib/explore/actions";
-import { evaluatePassportAchievements, getEarnedAchievements } from "@/lib/passport/actions";
+import { getEarnedAchievements } from "@/lib/passport/actions";
 import {
   computeAchievementProgress,
   derivePassportAchievementStats,
@@ -57,11 +57,12 @@ export default async function ExplorePage() {
 
   const initialResults = await getDiscoveryResults(region.bounds);
 
-  // Same evaluate-then-read pattern already established on Dashboard,
-  // evaluating here too means a threshold crossed by a log made just
-  // before visiting Explore is reflected immediately, not only after a
-  // separate Dashboard or Passport visit.
-  await evaluatePassportAchievements();
+  // No evaluate_passport_achievements() call here anymore. Evaluation
+  // now happens as a write-time side effect of createDrinkLog /
+  // updateDrinkLog (lib/drink-logs/actions.ts), so a threshold crossed
+  // by a log is already reflected by the time this reads it — Explore
+  // (like every other page) only ever reads what's already been
+  // evaluated, it doesn't re-run the evaluator just because it rendered.
   const earnedAchievements = await getEarnedAchievements();
 
   const allLogs = statRows ?? [];

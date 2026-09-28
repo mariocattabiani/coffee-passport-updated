@@ -12,8 +12,9 @@ import { ComingSoonStrip } from "@/components/dashboard/coming-soon-strip";
 import { RecentActivity } from "@/components/logs/recent-activity";
 import { ContinueYourPassport } from "@/components/dashboard/continue-your-passport";
 import { ExploreCta } from "@/components/dashboard/explore-cta";
-import { evaluatePassportAchievements, getEarnedAchievements } from "@/lib/passport/actions";
+import { getEarnedAchievements } from "@/lib/passport/actions";
 import { computeAchievementProgress, derivePassportAchievementStats, selectUpNext } from "@/lib/passport/achievements";
+import { signDrinkPhotoPaths } from "@/lib/storage/sign-photos";
 import type { LogCardData } from "@/components/logs/log-card";
 
 export const metadata: Metadata = {
@@ -65,16 +66,18 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  // profile, the stats query, the recent-logs query, and achievement
-  // evaluation are all independent of each other (none needs another's
-  // result, only user.id, already resolved above) — previously each
-  // was awaited on its own in sequence, several of them long after
-  // they could have actually started. evaluatePassportAchievements()
-  // re-derives everything it needs from drink_logs itself server-side,
-  // so it doesn't need statRows' client-side result either. Its
-  // resolved value isn't used here, only awaited — getEarnedAchievements
-  // below still correctly runs AFTER this whole batch finishes, so the
-  // write-then-read ordering that matters is preserved.
+  // profile, the stats query, and the recent-logs query are all
+  // independent of each other (none needs another's result, only
+  // user.id, already resolved above), so they run in parallel.
+  //
+  // Achievement evaluation deliberately does NOT run here anymore.
+  // evaluate_passport_achievements() is now a write-time side effect of
+  // createDrinkLog/updateDrinkLog (see lib/drink-logs/actions.ts) —
+  // Dashboard only ever READS what's already been evaluated, via
+  // getEarnedAchievements() below. See the Achievement Performance
+  // Remediation report for the full rationale: the old design re-ran
+  // the full evaluator on every Dashboard/Explore/Passport/Stamps
+  // visit even when nothing had changed since the last one.
   const [{ data: profile }, { data: statRows }, { data: recentRows }] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).single<Profile>(),
     supabase
@@ -94,7 +97,6 @@ export default async function DashboardPage() {
       .order("created_at", { ascending: false })
       .limit(8)
       .returns<RecentLogRow[]>(),
-    evaluatePassportAchievements(),
   ]);
 
   const allLogs = statRows ?? [];
@@ -114,16 +116,11 @@ export default async function DashboardPage() {
 
   // Resolve one signed URL per photo in a single batch call, the bucket
   // is private, so a raw photo_url path can't be rendered directly.
-  const photoPaths = recent.map((r) => r.photo_url).filter((p): p is string => !!p);
-  const signedUrlByPath = new Map<string, string>();
-  if (photoPaths.length > 0) {
-    const { data: signed } = await supabase.storage
-      .from("drink-photos")
-      .createSignedUrls(photoPaths, 3600);
-    signed?.forEach((s) => {
-      if (s.signedUrl && !s.error) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    });
-  }
+  const signedUrlByPath = await signDrinkPhotoPaths(
+    supabase,
+    recent.map((r) => r.photo_url),
+    3600
+  );
 
   const recentLogs: LogCardData[] = recent.map((r) => ({
     id: r.id,

@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { evaluatePassportAchievements, getEarnedAchievements } from "@/lib/passport/actions";
+import { getEarnedAchievements } from "@/lib/passport/actions";
 import {
   computeAchievementProgress,
   derivePassportAchievementStats,
@@ -57,12 +57,10 @@ export async function getMyStampItems(): Promise<StampDisplayItem[]> {
 
   const logs = rows ?? [];
 
-  // Same idempotent, server-derived evaluation Passport's own page
-  // already runs on every visit — never trusts anything from the
-  // client, re-derives qualification from drink_logs itself.
-  if (logs.length > 0) {
-    await evaluatePassportAchievements();
-  }
+  // No evaluate_passport_achievements() call here anymore. Evaluation
+  // is now a write-time side effect of createDrinkLog/updateDrinkLog
+  // (lib/drink-logs/actions.ts) — this page, like Dashboard, Explore,
+  // and Passport, only ever reads what's already been evaluated.
   const earnedAchievements = await getEarnedAchievements();
 
   const progress = computeAchievementProgress(derivePassportAchievementStats(logs), earnedAchievements);

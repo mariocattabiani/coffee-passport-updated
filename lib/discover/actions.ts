@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { FeedItem } from "@/components/discover/feed-card";
+import { signDrinkPhotoPaths } from "@/lib/storage/sign-photos";
 
 const PAGE_SIZE = 20;
 
@@ -96,21 +97,23 @@ function mapFeedRow(r: PublicFeedRow, signedUrlByPath: Map<string, string>): Fee
   };
 }
 
+/**
+ * Thin wrapper over the shared batching helper (lib/storage/sign-
+ * photos.ts) — kept as its own named function so getPublicFeedPage
+ * and getFriendsFeedPage below don't need to change, and so the
+ * row-shape-specific `.photo_path` extraction stays local to this
+ * file's own PublicFeedRow shape rather than living in the shared
+ * helper, which knows nothing about feed rows specifically.
+ */
 async function signPhotoPaths(
   supabase: Awaited<ReturnType<typeof createClient>>,
   results: PublicFeedRow[]
 ): Promise<Map<string, string>> {
-  const photoPaths = results.map((r) => r.photo_path).filter((p): p is string => !!p);
-  const signedUrlByPath = new Map<string, string>();
-  if (photoPaths.length > 0) {
-    const { data: signed } = await supabase.storage
-      .from("drink-photos")
-      .createSignedUrls(photoPaths, SIGNED_URL_TTL_SECONDS);
-    signed?.forEach((s) => {
-      if (s.signedUrl && !s.error) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    });
-  }
-  return signedUrlByPath;
+  return signDrinkPhotoPaths(
+    supabase,
+    results.map((r) => r.photo_path),
+    SIGNED_URL_TTL_SECONDS
+  );
 }
 
 /**

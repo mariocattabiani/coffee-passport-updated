@@ -12,6 +12,8 @@ import { FriendsHere, type FriendHereItem } from "@/components/shops/friends-her
 import { YourPassportHere, type YourPassportStats } from "@/components/shops/your-passport-here";
 import { AboutSection } from "@/components/shops/about-section";
 import { ClaimCafeCta } from "@/components/shops/claim-cafe-cta";
+import { deriveShopUserHistory } from "@/lib/shops/shop-visit-history";
+import { signDrinkPhotoPaths } from "@/lib/storage/sign-photos";
 import type { LogCardData } from "@/components/logs/log-card";
 
 interface ShopPageProps {
@@ -145,14 +147,11 @@ export default async function ShopPage({ params }: ShopPageProps) {
   // Signed URLs for the user's own photos here, the same batching
   // pattern already used on Dashboard and Passport, one call for
   // everything rather than one per photo.
-  const photoPaths = ownLogs.map((l) => l.photo_url).filter((p): p is string => !!p);
-  const signedUrlByPath = new Map<string, string>();
-  if (photoPaths.length > 0) {
-    const { data: signed } = await supabase.storage.from("drink-photos").createSignedUrls(photoPaths, 3600);
-    signed?.forEach((s) => {
-      if (s.signedUrl && !s.error) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    });
-  }
+  const signedUrlByPath = await signDrinkPhotoPaths(
+    supabase,
+    ownLogs.map((l) => l.photo_url),
+    3600
+  );
 
   const activity = activityRaw ?? [];
 
@@ -160,16 +159,11 @@ export default async function ShopPage({ params }: ShopPageProps) {
   // photos, these belong to other people's public logs, not this
   // viewer's own, the short TTL limits exposure if one of them flips
   // to private shortly after this page renders.
-  const activityPhotoPaths = activity.map((a) => a.photo_path).filter((p): p is string => !!p);
-  const activitySignedUrlByPath = new Map<string, string>();
-  if (activityPhotoPaths.length > 0) {
-    const { data: signed } = await supabase.storage
-      .from("drink-photos")
-      .createSignedUrls(activityPhotoPaths, 5 * 60);
-    signed?.forEach((s) => {
-      if (s.signedUrl && !s.error) activitySignedUrlByPath.set(s.path ?? "", s.signedUrl);
-    });
-  }
+  const activitySignedUrlByPath = await signDrinkPhotoPaths(
+    supabase,
+    activity.map((a) => a.photo_path),
+    5 * 60
+  );
 
   const activityItems: ShopActivityItem[] = activity.map((a) => ({
     logId: a.log_id,
@@ -224,42 +218,11 @@ export default async function ShopPage({ params }: ShopPageProps) {
   }));
 
   // "Your Passport here": a small, already-filtered (one user, one
-  // shop) dataset, aggregated in JS exactly the way Passport's own
-  // favorites logic already does, this is not the large cross-user
+  // shop) dataset, aggregated exactly the way Passport's own favorites
+  // logic aggregates — see lib/shops/shop-visit-history.ts's
+  // deriveShopUserHistory, this is not the large cross-user
   // aggregation the RPCs above exist to avoid doing client-side.
-  let stats: YourPassportStats | null = null;
-  if (ownLogs.length > 0) {
-    const avgOwnRating =
-      Math.round((ownLogs.reduce((sum, l) => sum + l.shop_rating, 0) / ownLogs.length) * 10) / 10;
-
-    const drinkAgg = new Map<string, { name: string; count: number; ratingSum: number }>();
-    for (const l of ownLogs) {
-      const key = l.drink?.id ?? "unknown";
-      const name = l.drink?.name ?? "Unknown drink";
-      const existing = drinkAgg.get(key);
-      if (existing) {
-        existing.count += 1;
-        existing.ratingSum += l.drink_rating;
-      } else {
-        drinkAgg.set(key, { name, count: 1, ratingSum: l.drink_rating });
-      }
-    }
-    const favorite = [...drinkAgg.values()].sort((a, b) => {
-      if (b.count !== a.count) return b.count - a.count;
-      const avgA = a.ratingSum / a.count;
-      const avgB = b.ratingSum / b.count;
-      if (avgB !== avgA) return avgB - avgA;
-      return a.name.localeCompare(b.name);
-    })[0];
-
-    stats = {
-      logCount: ownLogs.length,
-      avgOwnRating,
-      // Already ordered newest-first by the query above.
-      mostRecentLoggedAt: ownLogs[0].logged_at,
-      favoriteDrinkName: favorite?.name ?? null,
-    };
-  }
+  const stats: YourPassportStats | null = deriveShopUserHistory(ownLogs);
 
   const hasSnapshot = (ratingSummary?.rating_count ?? 0) > 0;
 
