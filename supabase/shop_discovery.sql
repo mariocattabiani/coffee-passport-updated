@@ -103,7 +103,9 @@ begin
       case when count(dl.id) >= 2 then round(avg(dl.shop_rating), 1) else null end as rating_avg,
       count(dl.id)::integer as rating_count
     from bounded_candidates c
-    left join public.drink_logs dl on dl.shop_id = c.id
+    left join public.drink_logs dl
+      on dl.shop_id = c.id
+      and dl.visibility = 'public'
     group by c.id
   ),
   top_drinks as (
@@ -116,6 +118,7 @@ begin
       from public.drink_logs dl
       join public.drinks d on d.id = dl.drink_id
       where dl.shop_id = c.id
+        and dl.visibility = 'public'
       group by d.id, d.name
       order by
         case when count(dl.id) >= 2 then 0 else 1 end asc,
@@ -240,7 +243,9 @@ as $$
       case when count(dl.id) >= 2 then round(avg(dl.shop_rating), 1) else null end as rating_avg,
       count(dl.id)::integer as rating_count
     from bounded_candidates c
-    left join public.drink_logs dl on dl.shop_id = c.id
+    left join public.drink_logs dl
+      on dl.shop_id = c.id
+      and dl.visibility = 'public'
     group by c.id
   ),
   top_drinks as (
@@ -253,6 +258,7 @@ as $$
       from public.drink_logs dl
       join public.drinks d on d.id = dl.drink_id
       where dl.shop_id = c.id
+        and dl.visibility = 'public'
       group by d.id, d.name
       order by
         case when count(dl.id) >= 2 then 0 else 1 end asc,
