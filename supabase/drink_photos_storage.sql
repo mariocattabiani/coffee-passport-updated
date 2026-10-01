@@ -7,7 +7,11 @@
 -- short-lived signed URLs to display a user's own photos.
 --
 -- Then run this script in the SQL Editor.
-
+update storage.buckets
+set
+  file_size_limit = 5242880,
+  allowed_mime_types = array['image/jpeg']::text[]
+where id = 'drink-photos';
 create policy "Users can view their own drink photos"
 on storage.objects for select
 to authenticated

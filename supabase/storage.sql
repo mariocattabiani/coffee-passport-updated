@@ -6,7 +6,11 @@
 -- Then run this script in the SQL Editor. It lets anyone view avatar
 -- images (they're profile photos, meant to be public) but only lets a
 -- signed-in user upload into their own folder (named after their user id).
-
+update storage.buckets
+set
+  file_size_limit = 2097152,
+  allowed_mime_types = array['image/jpeg']::text[]
+where id = 'avatars';
 create policy "Avatar images are publicly accessible"
 on storage.objects for select
 using (bucket_id = 'avatars');
