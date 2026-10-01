@@ -82,6 +82,10 @@ begin
 end;
 $$;
 
+revoke execute on function public.handle_new_user() from public;
+revoke execute on function public.handle_new_user() from anon;
+revoke execute on function public.handle_new_user() from authenticated;
+grant execute on function public.handle_new_user() to service_role;
 drop trigger if exists on_auth_user_created on auth.users;
 
 create trigger on_auth_user_created
