@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { MapPin, User, Pencil, LogOut } from "lucide-react";
 
@@ -66,11 +67,12 @@ export function PassportHeader({ profile, stats, exploringSinceDate }: PassportH
                 />
                 <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-latte/30 shadow-card ring-4 ring-white sm:h-28 sm:w-28">
                   {profile?.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={profile.avatar_url}
                       alt={fullName ? `${fullName}'s profile photo` : "Profile photo"}
-                      className="h-full w-full object-cover"
+                      fill
+                      sizes="(min-width: 640px) 112px, 80px"
+                      className="object-cover"
                     />
                   ) : (
                     <User className="h-9 w-9 text-espresso/40" aria-hidden="true" />
