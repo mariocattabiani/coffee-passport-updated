@@ -1,7 +1,7 @@
 import type { DiscoveryResult } from "@/lib/explore/actions";
 import type { ExternalCafeResult } from "@/lib/explore/nearby-search-actions";
 
-export type ShopTypeFilter = "all" | "independent" | "chain";
+export type ShopTypeFilter = "all" | "chain";
 export type QuickFilter = "new" | "visited" | "highly_rated" | "friends";
 export type SortOption = "nearby" | "top_rated" | "most_logged" | "new_to_me";
 

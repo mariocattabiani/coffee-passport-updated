@@ -264,8 +264,7 @@ export function ExploreClient({ initialResults, regionLabel, upNextGoal }: Explo
       }
 
       const item = entry.data;
-      if (filters.shopType === "independent" && item.isChain) return false;
-      if (filters.shopType === "chain" && !item.isChain) return false;
+      if (filters.shopType === "chain" && item.isChain !== true) return false;
       if (filters.quick.includes("new") && item.visitedByMe) return false;
       if (filters.quick.includes("visited") && !item.visitedByMe) return false;
       if (filters.quick.includes("highly_rated") && (item.ratingAvg === null || item.ratingAvg < 4)) return false;

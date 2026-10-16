@@ -10,7 +10,6 @@ interface FilterBarProps {
 
 const SHOP_TYPE_OPTIONS: { value: ShopTypeFilter; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "independent", label: "Independent" },
   { value: "chain", label: "Chain" },
 ];
 
@@ -24,9 +23,9 @@ const QUICK_FILTER_OPTIONS: { value: QuickFilter; label: string }[] = [
 const DISTANCE_OPTIONS = [1, 3, 5];
 
 /**
- * Explicit three-state shop-type control, not an on/off Independent
- * toggle, an "off" state on a binary toggle can't distinguish "show
- * everything" from "show me chains specifically".
+ * Shop-type control for all cafés or confirmed chains.
+ * Independent filtering is intentionally omitted because unclassified
+ * cafés cannot be reliably distinguished from independents.
  */
 export function FilterBar({ filters, onChange, hasLocation }: FilterBarProps) {
   function toggleQuick(value: QuickFilter) {

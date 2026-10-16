@@ -7,17 +7,16 @@ interface MobileFilterRowProps {
   onChange: (filters: ExploreFilters) => void;
 }
 
-type ChipValue = QuickFilter | "independent";
+type ChipValue = QuickFilter;
 
 const CHIPS: { value: ChipValue; label: string }[] = [
-  { value: "independent", label: "Independent" },
   { value: "new", label: "New to me" },
   { value: "visited", label: "Visited" },
   { value: "friends", label: "Friends" },
 ];
 
 /**
- * Deliberately narrow: Independent, New to me, Visited, Friends only,
+ * Deliberately narrow: New to me, Visited, Friends only,
  * no Highly rated, no Chain, no distance, no sort in the primary
  * mobile strip. All of that filter logic still exists in ExploreClient
  * unchanged, this only changes which controls render here. One row,
@@ -25,15 +24,10 @@ const CHIPS: { value: ChipValue; label: string }[] = [
  */
 export function MobileFilterRow({ filters, onChange }: MobileFilterRowProps) {
   function isActive(value: ChipValue) {
-    if (value === "independent") return filters.shopType === "independent";
     return filters.quick.includes(value);
   }
 
   function toggle(value: ChipValue) {
-    if (value === "independent") {
-      onChange({ ...filters, shopType: filters.shopType === "independent" ? "all" : "independent" });
-      return;
-    }
     const has = filters.quick.includes(value);
     onChange({
       ...filters,
