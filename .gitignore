@@ -8,3 +8,5 @@ out
 .env*.local
 
 .DS_Store
+# Supabase CLI local state
+supabase/.temp/
