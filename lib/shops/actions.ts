@@ -3,10 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Shop } from "@/lib/supabase/types";
 
-const UNIQUE_VIOLATION = "23505";
 const MAX_PLACE_ID_LENGTH = 255;
 const MAX_NAME_LENGTH = 120;
-const MAX_CITY_LENGTH = 80;
 
 /**
  * Pure lookup, no side effects, no creation. Used first, always,
@@ -26,22 +24,15 @@ export async function findShopByGooglePlaceId(googlePlaceId: string): Promise<Sh
 
 export interface CreateCoffeePassportShopInput {
   googlePlaceId: string;
-  /** Coffee Passport's own permanent name for this café, entered by a
-   *  user through our own form. This is never Google's displayName
-   *  copied in silently, the caller is responsible for that boundary,
-   *  see components/explore/add-external-cafe-dialog.tsx. */
+
+  /**
+   * Coffee Passport's user-confirmed permanent display name.
+   *
+   * The browser never supplies physical geography here. Google place
+   * verification, address normalization, coordinates, and canonical
+   * location resolution are all owned by create-google-shop.
+   */
   name: string;
-  city?: string | null;
-  nameSource: "user" | "manual" | "seed";
-  locationSource?: "user" | "manual" | "seed";
-  /** A row id from Coffee Passport's OWN public.locations table (see
-   *  location_model.sql) — never a Google place id, coordinate, or
-   *  address component. Resolved by matchLocationFromHint (see
-   *  lib/shops/location-match-actions.ts) from text the person already
-   *  saw and confirmed, or left null when nothing could be safely
-   *  resolved. Validated server-side below; a bogus id is silently
-   *  ignored rather than trusted. */
-  locationId?: string | null;
 }
 
 export interface CreateCoffeePassportShopResult {
@@ -49,136 +40,163 @@ export interface CreateCoffeePassportShopResult {
   error?: string;
 }
 
-function validateCreateInput(input: CreateCoffeePassportShopInput): string | null {
-  const placeId = input.googlePlaceId.trim();
-  if (!placeId) return "Missing place information. Please try again.";
-  if (placeId.length > MAX_PLACE_ID_LENGTH) return "Something went wrong with that selection. Please try again.";
-
-  const name = input.name.trim();
-  if (!name) return "Please enter a café name.";
-  if (name.length > MAX_NAME_LENGTH) return "That name is too long.";
-
-  if (input.city && input.city.length > MAX_CITY_LENGTH) return "That city name is too long.";
-
-  return null;
-}
-
 /**
- * Creates a new, durable Coffee Passport shop record from a
- * Google-discovered café (Autocomplete or Nearby Search), storing only
- * what's genuinely Coffee Passport's own: the Google place ID (the one
- * field with an explicit, indefinite storage right), a Coffee
- * Passport-entered name, and an optional Coffee Passport-entered city.
+ * Website adapter for Coffee Passport's authoritative Google-backed
+ * shop creation pipeline.
  *
- * Deliberately does NOT accept or persist Google's formattedAddress,
- * addressComponents, state, country, or coordinates. A newly created
- * shop may have null latitude/longitude, that's expected and fine,
- * shops.latitude/longitude are already nullable with constraints that
- * explicitly permit null. It simply won't appear in coordinate-based
- * map surfaces until Coffee Passport has its own location data for it,
- * every other surface (ratings, Top Drinks, logs, Passport history,
- * public activity, the café page itself) works the same regardless.
- *
- * locationId is the one addition to that boundary, and it does not
- * cross it: it points at a row in Coffee Passport's OWN
- * public.locations table (city-level coordinates from an independent,
- * non-Google source — see location_model.sql), resolved via
- * matchLocationFromHint from text the person already saw and
- * confirmed, never a Google place id/address/coordinate stored
- * directly. Validated against locations before being trusted, below —
- * and when it validates, this function reads that row's OWN
- * city/region/country and writes THOSE onto the shop's legacy city/
- * state/country columns, taking precedence over any city text the
- * caller sent. That's still not Google persistence (the values come
- * from public.locations, never from Google), and it's what keeps every
- * existing surface that still reads shops.city/state directly
- * (Places Explored, Been, favorite café subtitles, uniqueCitiesCount)
- * correct for newly created shops, not just the location_id-aware map.
- *
- * Race-safe the same way shop creation always has been in this project: attempts
- * the insert, and on a unique-constraint hit (someone else created the
- * same place a moment earlier), returns whichever row actually won,
- * never a raw duplicate-key failure surfaced to the user.
+ * Web and native intentionally use the same Supabase Edge Function.
+ * The client confirms only the Google Place ID and Coffee Passport
+ * display name. The backend independently verifies the place with
+ * Google and owns all geographic persistence.
  */
 export async function createCoffeePassportShop(
   input: CreateCoffeePassportShopInput
 ): Promise<CreateCoffeePassportShopResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: "Please log in and try again." };
-  }
-
-  const validationError = validateCreateInput(input);
-  if (validationError) {
-    return { error: validationError };
-  }
-
   const googlePlaceId = input.googlePlaceId.trim();
   const name = input.name.trim();
 
-  // Never trust a client-supplied location_id blindly — confirm it's a
-  // real row in our own locations table first, and read its
-  // city/region/country FROM that row, not from any text the client
-  // sent. This is Coffee Passport's own data (public.locations, see
-  // location_model.sql), never Google's — the shop's legacy city/
-  // state/country columns end up populated so every existing surface
-  // that still reads them directly (Places Explored, Been, favorite
-  // café subtitles, uniqueCitiesCount, etc.) keeps working correctly
-  // for newly created shops, not just location_id-aware ones. A bogus/
-  // stale locationId is silently dropped (the shop still creates
-  // fine, just unresolved) rather than trusted or surfaced as an
-  // error over something this minor.
-  let locationId: string | null = null;
-  let city: string | null = input.city?.trim() || null;
-  let state: string | null = null;
-  let country: string | null = null;
+  if (!googlePlaceId) {
+    return {
+      error: "Missing place information. Please try again.",
+    };
+  }
 
-  if (input.locationId) {
-    const { data: locationRow } = await supabase
-      .from("locations")
-      .select("id, city, region, country")
-      .eq("id", input.locationId)
-      .maybeSingle<{ id: string; city: string; region: string | null; country: string }>();
+  if (googlePlaceId.length > MAX_PLACE_ID_LENGTH) {
+    return {
+      error:
+        "Something went wrong with that selection. Please try again.",
+    };
+  }
 
-    if (locationRow) {
-      locationId = locationRow.id;
-      // Canonical location data takes precedence over any client-sent
-      // city text when a location actually resolved — see PART 7 of
-      // the correction this implements.
-      city = locationRow.city;
-      state = locationRow.region;
-      country = locationRow.country;
+  if (!name) {
+    return {
+      error: "Please enter a café name.",
+    };
+  }
+
+  if (name.length > MAX_NAME_LENGTH) {
+    return {
+      error: "That name is too long.",
+    };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      error: "Please log in and try again.",
+    };
+  }
+
+  /*
+   * This server action runs on Next.js, not in the browser.
+   * Explicitly forward the current user's Supabase access token to
+   * create-google-shop so the Edge Function can independently verify
+   * the caller.
+   */
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (
+    sessionError ||
+    !session?.access_token
+  ) {
+    console.error(
+      "createCoffeePassportShop session unavailable:",
+      sessionError?.message ?? "no access token"
+    );
+
+    return {
+      error: "Please log in and try again.",
+    };
+  }
+
+  const { data, error } =
+    await supabase.functions.invoke(
+      "create-google-shop",
+      {
+        body: {
+          googlePlaceId,
+          confirmedName: name,
+        },
+        headers: {
+          Authorization:
+            `Bearer ${session.access_token}`,
+        },
+      }
+    );
+
+  if (error) {
+    let functionErrorBody: unknown = null;
+    let functionStatus: number | null = null;
+
+    try {
+      const context =
+        "context" in error
+          ? (error as { context?: Response }).context
+          : undefined;
+
+      if (context) {
+        functionStatus = context.status;
+
+        const cloned = context.clone();
+
+        try {
+          functionErrorBody = await cloned.json();
+        } catch {
+          functionErrorBody = await context.text();
+        }
+      }
+    } catch (contextError) {
+      console.error(
+        "Could not read create-google-shop error response:",
+        contextError
+      );
     }
+
+    console.error(
+      "create-google-shop invocation failed:",
+      {
+        message: error.message,
+        status: functionStatus,
+        body: functionErrorBody,
+      }
+    );
+
+    const serverMessage =
+      functionErrorBody &&
+      typeof functionErrorBody === "object" &&
+      "error" in functionErrorBody &&
+      typeof (functionErrorBody as { error?: unknown }).error === "string"
+        ? (functionErrorBody as { error: string }).error
+        : null;
+
+    return {
+      error:
+        serverMessage ??
+        "Something went wrong saving that café. Please try again.",
+    };
   }
 
-  const { data: inserted, error } = await supabase
-    .from("shops")
-    .insert({
-      google_place_id: googlePlaceId,
-      name,
-      city,
-      state,
-      country,
-      name_source: input.nameSource,
-      location_source: city ? input.locationSource ?? "user" : "unknown",
-      location_id: locationId,
-    })
-    .select()
-    .single<Shop>();
-
-  if (!error && inserted) {
-    return { shop: inserted };
+  if (
+    !data?.success ||
+    !data?.shop
+  ) {
+    return {
+      error:
+        data?.error ??
+        "Something went wrong saving that café. Please try again.",
+    };
   }
 
-  if (error?.code === UNIQUE_VIOLATION) {
-    const winner = await findShopByGooglePlaceId(googlePlaceId);
-    if (winner) {
-      return { shop: winner };
-    }
-  }
-
-  return { error: "Something went wrong saving that café. Please try again." };
+  return {
+    shop: data.shop as Shop,
+  };
 }
+

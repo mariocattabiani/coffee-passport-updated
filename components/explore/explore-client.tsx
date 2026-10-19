@@ -569,11 +569,6 @@ export function ExploreClient({ initialResults, regionLabel, upNextGoal }: Explo
             googlePlaceId: addCafeContext.googlePlaceId,
             googleName: addCafeContext.name,
             googleSecondaryText: addCafeContext.formattedAddress,
-            locationHint: {
-              city: addCafeContext.city,
-              region: addCafeContext.state,
-              countryCode: addCafeContext.country,
-            },
           }}
           onCreated={handleCafeCreated}
           onCancel={() => setAddCafeContext(null)}

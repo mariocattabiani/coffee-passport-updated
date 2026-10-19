@@ -188,11 +188,6 @@ export function GoogleShopPicker({ selectedShop, onSelect, onChange }: GoogleSho
             googlePlaceId: pendingPlace.googlePlaceId,
             googleName: pendingPlace.name,
             googleSecondaryText: pendingPlace.formattedAddress,
-            locationHint: {
-              city: pendingPlace.city,
-              region: pendingPlace.state,
-              countryCode: pendingPlace.country,
-            },
           }}
           onCreated={handleCafeCreated}
           onCancel={() => setPendingPlace(null)}
