@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 
+import { DrinkPhotoImg } from "@/components/logs/drink-photo-img";
+
 interface PhotoLightboxProps {
   src: string;
   alt: string;
@@ -104,10 +106,10 @@ export function PhotoLightbox({ src, alt, onClose }: PhotoLightboxProps) {
       >
         <X className="h-5 w-5" />
       </button>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <DrinkPhotoImg
         src={src}
         alt={alt}
+        loading="eager"
         tabIndex={0}
         className="max-h-full max-w-full rounded-lg object-contain focus:outline-none focus:ring-2 focus:ring-crema"
         onClick={(e) => e.stopPropagation()}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Users } from "lucide-react";
 
+import { DrinkPhotoImg } from "@/components/logs/drink-photo-img";
 import { StarDisplay } from "@/components/logs/star-display";
 import { CafeThumbnailPlaceholder } from "@/components/explore/cafe-thumbnail-placeholder";
 import type { DiscoveryResult } from "@/lib/explore/actions";
@@ -31,8 +32,7 @@ export function ResultCard({ item, distanceMiles, selected }: ResultCardProps) {
     >
       {item.photoUrl ? (
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-charcoal/5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.photoUrl} alt="" className="h-full w-full object-cover" />
+          <DrinkPhotoImg src={item.photoUrl} alt="" className="h-full w-full object-cover" />
         </div>
       ) : (
         <CafeThumbnailPlaceholder name={item.name} size="md" />

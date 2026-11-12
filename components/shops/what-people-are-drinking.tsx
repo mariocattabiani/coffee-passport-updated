@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Camera, User } from "lucide-react";
 
+import { DrinkPhotoImg } from "@/components/logs/drink-photo-img";
 import { StarDisplay } from "@/components/logs/star-display";
 import { formatRelativeDate } from "@/lib/drink-logs/format";
 
@@ -74,8 +75,7 @@ export function WhatPeopleAreDrinking({ items, shopId }: WhatPeopleAreDrinkingPr
             >
               {item.photoUrl ? (
                 <div className="relative aspect-square w-full bg-charcoal/5">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <DrinkPhotoImg
                     src={item.photoUrl}
                     alt={`${item.drinkName}, logged by ${displayName}`}
                     className="h-full w-full object-cover"

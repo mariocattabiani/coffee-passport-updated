@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { DrinkPhotoImg } from "@/components/logs/drink-photo-img";
 import { PhotoLightbox } from "@/components/logs/photo-lightbox";
 
 interface LogCardMediaProps {
@@ -51,8 +52,7 @@ export function LogCardMedia({ photoUrl, alt, positionX, positionY }: LogCardMed
         className="group relative block aspect-[4/3] w-full overflow-hidden bg-charcoal/5"
         aria-label="View full photo"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <DrinkPhotoImg
           src={photoUrl}
           alt={alt}
           className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"

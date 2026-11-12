@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Coffee, Leaf } from "lucide-react";
 
 import { formatShopLocation } from "@/components/discover/feed-card";
+import { DrinkPhotoImg } from "@/components/logs/drink-photo-img";
 
 export interface CoffeeLogGridTileData {
   id: string;
@@ -49,9 +50,8 @@ export function CoffeeLogGridTile({ data }: CoffeeLogGridTileProps) {
     >
       <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg bg-latte/20">
         {hasPhoto ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={data.photoUrl ?? undefined}
+          <DrinkPhotoImg
+            src={data.photoUrl}
             alt=""
             className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03] group-focus-visible:scale-[1.03]"
             style={{ objectPosition }}

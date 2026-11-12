@@ -1,5 +1,6 @@
 import { X, Users } from "lucide-react";
 
+import { DrinkPhotoImg } from "@/components/logs/drink-photo-img";
 import { StarDisplay } from "@/components/logs/star-display";
 import { GoogleAttribution } from "@/components/explore/google-attribution";
 import { CafeThumbnailPlaceholder } from "@/components/explore/cafe-thumbnail-placeholder";
@@ -63,8 +64,7 @@ export function MapCafePreview({ item, distanceMiles, opening, onView, onDismiss
         {item.source === "stored" ? (
           item.data.photoUrl ? (
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-charcoal/5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.data.photoUrl} alt="" className="h-full w-full object-cover" />
+              <DrinkPhotoImg src={item.data.photoUrl} alt="" className="h-full w-full object-cover" />
             </div>
           ) : (
             <CafeThumbnailPlaceholder name={item.data.name} size="sm" />

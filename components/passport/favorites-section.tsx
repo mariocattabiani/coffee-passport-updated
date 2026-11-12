@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Coffee, MapPin, Star } from "lucide-react";
 
+import { DrinkPhotoImg } from "@/components/logs/drink-photo-img";
+
 export interface FavoriteSummary {
   title: string;
   subtitle: string;
@@ -43,8 +45,7 @@ function FavoriteDrinkFeature({ data }: { data: FavoriteSummary | null }) {
 
       {data.photoUrl ? (
         <div className="relative mt-2 aspect-[16/9] w-full overflow-hidden rounded-lg bg-charcoal/5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <DrinkPhotoImg
             src={data.photoUrl}
             alt=""
             className="h-full w-full object-cover"
