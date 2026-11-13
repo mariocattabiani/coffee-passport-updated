@@ -13,7 +13,7 @@ import { YourPassportHere, type YourPassportStats } from "@/components/shops/you
 import { AboutSection } from "@/components/shops/about-section";
 import { ClaimCafeCta } from "@/components/shops/claim-cafe-cta";
 import { deriveShopUserHistory } from "@/lib/shops/shop-visit-history";
-import { signDrinkPhotoPaths } from "@/lib/storage/sign-photos";
+import { signDrinkPhotoCardPaths } from "@/lib/storage/sign-photos";
 import type { LogCardData } from "@/components/logs/log-card";
 
 interface ShopPageProps {
@@ -147,7 +147,7 @@ export default async function ShopPage({ params }: ShopPageProps) {
   // Signed URLs for the user's own photos here, the same batching
   // pattern already used on Dashboard and Passport, one call for
   // everything rather than one per photo.
-  const signedUrlByPath = await signDrinkPhotoPaths(
+  const signedUrlByPath = await signDrinkPhotoCardPaths(
     supabase,
     ownLogs.map((l) => l.photo_url),
     3600
@@ -159,7 +159,7 @@ export default async function ShopPage({ params }: ShopPageProps) {
   // photos, these belong to other people's public logs, not this
   // viewer's own, the short TTL limits exposure if one of them flips
   // to private shortly after this page renders.
-  const activitySignedUrlByPath = await signDrinkPhotoPaths(
+  const activitySignedUrlByPath = await signDrinkPhotoCardPaths(
     supabase,
     activity.map((a) => a.photo_path),
     5 * 60

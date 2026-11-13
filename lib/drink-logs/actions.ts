@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { cardPathFor } from "@/lib/storage/photo-variants";
 import type { BeverageCategory, Drink, Temperature } from "@/lib/supabase/types";
 import { evaluatePassportAchievements } from "@/lib/passport/actions";
 
@@ -233,7 +234,10 @@ function validateLogFields(input: RatableFields): string | null {
 
 async function removePhoto(supabase: SupabaseServerClient, path: string | null) {
   if (path) {
-    await supabase.storage.from("drink-photos").remove([path]);
+    // The original and its lighter card copy (lib/storage/photo-variants);
+    // a card copy that was never created is simply ignored by Storage.
+    const card = cardPathFor(path);
+    await supabase.storage.from("drink-photos").remove(card === path ? [path] : [path, card]);
   }
 }
 

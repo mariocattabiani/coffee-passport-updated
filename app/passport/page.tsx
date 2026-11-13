@@ -32,7 +32,7 @@ import {
   derivePassportLocationMap,
   deriveTemperaturePreference,
 } from "@/lib/passport/passport-stats";
-import { signDrinkPhotoPaths } from "@/lib/storage/sign-photos";
+import { signDrinkPhotoCardPaths } from "@/lib/storage/sign-photos";
 import type { LogCardData } from "@/components/logs/log-card";
 
 export const metadata: Metadata = {
@@ -105,7 +105,7 @@ export default async function PassportPage() {
 
   // Resolve every photo in one batched call, whether it ends up used in
   // the history grid or reused as a favorite's thumbnail below.
-  const signedUrlByPath = await signDrinkPhotoPaths(
+  const signedUrlByPath = await signDrinkPhotoCardPaths(
     supabase,
     logs.map((l) => l.photo_url),
     3600

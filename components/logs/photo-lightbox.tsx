@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 import { DrinkPhotoImg } from "@/components/logs/drink-photo-img";
+import { resignDrinkPhoto } from "@/lib/storage/resign-photo";
+import { lookupPhotoUrl, storagePathFromSignedUrl } from "@/lib/storage/photo-url-registry";
+import { fullPathFor, isCardPath } from "@/lib/storage/photo-variants";
 
 interface PhotoLightboxProps {
   src: string;
@@ -23,8 +26,12 @@ const FOCUSABLE_SELECTOR = 'button, [href], [tabindex]:not([tabindex="-1"])';
  * aspect ratio, with a restrained backdrop and a close affordance, not a
  * gallery or carousel (that's Phase 2, once multi-photo exists).
  *
- * Reuses whatever signed URL the caller already has (`src` is passed
- * straight through from the feed/card), never re-signs on tap.
+ * Shows whatever signed URL the caller already has immediately. When
+ * that is the lighter "card" copy (lib/storage/photo-variants), it then
+ * upgrades to the full original: reusing an already-downloaded link if
+ * this tab has one, otherwise asking the server for one link under the
+ * viewer's own session. The full original is only ever downloaded when
+ * someone actually opens it.
  *
  * Focus handling: the element that had focus before opening (the photo
  * trigger button) is saved and restored on close/unmount. While open,
@@ -35,6 +42,28 @@ export function PhotoLightbox({ src, alt, onClose }: PhotoLightboxProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const [fullSrc, setFullSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFullSrc(null);
+    const path = storagePathFromSignedUrl(src);
+    if (!path || !isCardPath(path)) return;
+    const fullPath = fullPathFor(path);
+    const known = lookupPhotoUrl(fullPath);
+    if (known) {
+      setFullSrc(known);
+      return;
+    }
+    let cancelled = false;
+    resignDrinkPhoto(fullPath)
+      .then((url) => {
+        if (!cancelled && url) setFullSrc(url);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
 
   useEffect(() => {
     previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
@@ -107,7 +136,7 @@ export function PhotoLightbox({ src, alt, onClose }: PhotoLightboxProps) {
         <X className="h-5 w-5" />
       </button>
       <DrinkPhotoImg
-        src={src}
+        src={fullSrc ?? src}
         alt={alt}
         loading="eager"
         tabIndex={0}

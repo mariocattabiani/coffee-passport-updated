@@ -12,6 +12,7 @@ import { StarRating } from "@/components/logs/star-rating";
 import { PhotoUpload, type PhotoSelection } from "@/components/logs/photo-upload";
 import { createClient } from "@/lib/supabase/client";
 import { updateDrinkLog } from "@/lib/drink-logs/actions";
+import { uploadPhotoCard } from "@/lib/drink-logs/upload-photo-card";
 import type { BeverageCategory, Temperature } from "@/lib/supabase/types";
 
 /**
@@ -148,6 +149,9 @@ export function EditLogForm({
         return;
       }
       newPhotoPath = path;
+      // Replace the lighter copy too. If that fails, the old copy is
+      // removed so the new full photo shows instead of an outdated one.
+      await uploadPhotoCard(path, photoFile);
     }
 
     const timeZone =

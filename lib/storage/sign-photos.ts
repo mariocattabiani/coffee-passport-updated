@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { cardPathFor } from "@/lib/storage/photo-variants";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -42,4 +43,45 @@ export async function signDrinkPhotoPaths(
     });
   }
   return signedUrlByPath;
+}
+
+/**
+ * Same contract as signDrinkPhotoPaths (Map keyed by the ORIGINAL path,
+ * same TTL choice left to the caller), but each URL points at the
+ * lighter "card" copy when one exists, else at the full original.
+ *
+ * One createSignedUrls request covers both: Supabase returns a per-item
+ * error for a card copy that doesn't exist (older photos, or a card
+ * upload that failed), and that photo falls back to its original. Access
+ * is decided by the same Storage policies for both variants.
+ *
+ * Use for card-sized surfaces only (feeds, grids, café pages, Explore).
+ * The full-screen viewer upgrades to the original on its own.
+ */
+export async function signDrinkPhotoCardPaths(
+  supabase: SupabaseServerClient,
+  paths: (string | null | undefined)[],
+  ttlSeconds: number
+): Promise<Map<string, string>> {
+  const photoPaths = [...new Set(paths.filter((p): p is string => !!p))];
+  const urlByPath = new Map<string, string>();
+  if (photoPaths.length === 0) return urlByPath;
+
+  const cardByFull = new Map(photoPaths.map((p) => [p, cardPathFor(p)] as const));
+  const toSign = [...new Set([...photoPaths, ...cardByFull.values()])];
+
+  const { data: signed } = await supabase.storage
+    .from(DRINK_PHOTOS_BUCKET)
+    .createSignedUrls(toSign, ttlSeconds);
+
+  const signedByPath = new Map<string, string>();
+  signed?.forEach((s) => {
+    if (s.signedUrl && !s.error && s.path) signedByPath.set(s.path, s.signedUrl);
+  });
+
+  for (const full of photoPaths) {
+    const url = signedByPath.get(cardByFull.get(full)!) ?? signedByPath.get(full);
+    if (url) urlByPath.set(full, url);
+  }
+  return urlByPath;
 }

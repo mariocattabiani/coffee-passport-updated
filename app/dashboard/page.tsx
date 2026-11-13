@@ -14,7 +14,7 @@ import { ContinueYourPassport } from "@/components/dashboard/continue-your-passp
 import { ExploreCta } from "@/components/dashboard/explore-cta";
 import { getEarnedAchievements } from "@/lib/passport/actions";
 import { computeAchievementProgress, derivePassportAchievementStats, selectUpNext } from "@/lib/passport/achievements";
-import { signDrinkPhotoPaths } from "@/lib/storage/sign-photos";
+import { signDrinkPhotoCardPaths } from "@/lib/storage/sign-photos";
 import type { LogCardData } from "@/components/logs/log-card";
 
 export const metadata: Metadata = {
@@ -116,7 +116,7 @@ export default async function DashboardPage() {
 
   // Resolve one signed URL per photo in a single batch call, the bucket
   // is private, so a raw photo_url path can't be rendered directly.
-  const signedUrlByPath = await signDrinkPhotoPaths(
+  const signedUrlByPath = await signDrinkPhotoCardPaths(
     supabase,
     recent.map((r) => r.photo_url),
     3600

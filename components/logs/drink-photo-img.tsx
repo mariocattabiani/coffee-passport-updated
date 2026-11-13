@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ImgHTMLAttributes } from "react";
 
 import { resignDrinkPhoto } from "@/lib/storage/resign-photo";
+import { fullPathFor, isCardPath } from "@/lib/storage/photo-variants";
 import {
   forgetPhotoUrl,
   rememberPhotoUrl,
@@ -31,11 +32,12 @@ type DrinkPhotoImgProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "onE
  *    requested. (On a full page load the registry is empty, so the
  *    server-rendered link is used and hydration matches.)
  *
- * 3. Expired-link recovery, never looping:
+ * 3. Recovery, never looping:
  *      reused link fails  -> fall back to the fresh link from the server
- *      fresh link fails   -> ask the server to re-sign once (viewer's own
- *                            session, Storage policies still decide)
- *      re-sign refused    -> hide the image (e.g. post went private)
+ *      fresh link fails   -> ask the server to re-sign it once (viewer's
+ *                            own session, Storage policies still decide)
+ *      card copy fails    -> also try the full original once
+ *      all refused        -> hide the image (e.g. post went private)
  */
 export function DrinkPhotoImg({
   src,
@@ -47,7 +49,8 @@ export function DrinkPhotoImg({
 }: DrinkPhotoImgProps) {
   const [currentSrc, setCurrentSrc] = useState<string | null>(() => (src ? resolvePhotoUrl(src) : null));
   const [triedServerLink, setTriedServerLink] = useState(false);
-  const [resigned, setResigned] = useState(false);
+  // Storage paths already re-signed for this element; each at most once.
+  const resignedPaths = useRef(new Set<string>());
   const [failed, setFailed] = useState(false);
 
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -71,7 +74,7 @@ export function DrinkPhotoImg({
     lastPropSrc.current = src;
     setCurrentSrc(src ? resolvePhotoUrl(src) : null);
     setTriedServerLink(false);
-    setResigned(false);
+    resignedPaths.current = new Set();
     setFailed(false);
   }, [src]);
 
@@ -88,18 +91,27 @@ export function DrinkPhotoImg({
       return;
     }
 
-    if (resigned) {
+    const path = storagePathFromSignedUrl(currentSrc);
+    if (!path) {
       setFailed(true);
       return;
     }
-    setResigned(true);
-    const path = storagePathFromSignedUrl(currentSrc);
-    const fresh = path ? await resignDrinkPhoto(path).catch(() => null) : null;
-    if (fresh) {
-      setCurrentSrc(fresh);
-    } else {
-      setFailed(true);
+
+    // Re-sign the same photo once; for a lighter card copy, then also try
+    // its full original once (covers an expired link AND a card copy that
+    // is missing or broken). Every path is tried at most once, so this
+    // always terminates.
+    const candidates = isCardPath(path) ? [path, fullPathFor(path)] : [path];
+    for (const candidate of candidates) {
+      if (resignedPaths.current.has(candidate)) continue;
+      resignedPaths.current.add(candidate);
+      const fresh = await resignDrinkPhoto(candidate).catch(() => null);
+      if (fresh) {
+        setCurrentSrc(fresh);
+        return;
+      }
     }
+    setFailed(true);
   }
 
   if (!currentSrc || failed) return null;

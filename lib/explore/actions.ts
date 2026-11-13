@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { signDrinkPhotoCardPaths } from "@/lib/storage/sign-photos";
 import { boundsAroundPoint, type Bounds } from "@/lib/explore/geo";
 
 const SIGNED_URL_TTL_SECONDS = 5 * 60;
@@ -56,15 +57,9 @@ async function enrichAndMapRows(
   rows: DiscoveryRow[]
 ): Promise<DiscoveryResult[]> {
   const photoPaths = rows.map((r) => r.photo_path).filter((p): p is string => !!p);
-  const signedUrlByPath = new Map<string, string>();
-  if (photoPaths.length > 0) {
-    const { data: signed } = await supabase.storage
-      .from("drink-photos")
-      .createSignedUrls(photoPaths, SIGNED_URL_TTL_SECONDS);
-    signed?.forEach((s) => {
-      if (s.signedUrl && !s.error) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    });
-  }
+  // Lighter card copy where one exists, else the original (same
+  // policies, same short TTL): lib/storage/sign-photos.ts.
+  const signedUrlByPath = await signDrinkPhotoCardPaths(supabase, photoPaths, SIGNED_URL_TTL_SECONDS);
 
   return rows.map((r) => ({
     shopId: r.shop_id,

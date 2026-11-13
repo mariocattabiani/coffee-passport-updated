@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { FeedItem } from "@/components/discover/feed-card";
-import { signDrinkPhotoPaths } from "@/lib/storage/sign-photos";
+import { signDrinkPhotoCardPaths } from "@/lib/storage/sign-photos";
 
 const PAGE_SIZE = 20;
 
@@ -109,7 +109,7 @@ async function signPhotoPaths(
   supabase: Awaited<ReturnType<typeof createClient>>,
   results: PublicFeedRow[]
 ): Promise<Map<string, string>> {
-  return signDrinkPhotoPaths(
+  return signDrinkPhotoCardPaths(
     supabase,
     results.map((r) => r.photo_path),
     SIGNED_URL_TTL_SECONDS

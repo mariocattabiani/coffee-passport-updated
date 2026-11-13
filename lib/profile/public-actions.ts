@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { signDrinkPhotoCardPaths } from "@/lib/storage/sign-photos";
 import type { FriendshipState } from "@/lib/friends/actions";
 import type { FeedCursor } from "@/lib/discover/actions";
 import type { FeedItem } from "@/components/discover/feed-card";
@@ -127,15 +128,9 @@ export async function getPublicUserActivityPage(
   const results = (data ?? []) as UserActivityRow[];
 
   const photoPaths = results.map((r) => r.photo_path).filter((p): p is string => !!p);
-  const signedUrlByPath = new Map<string, string>();
-  if (photoPaths.length > 0) {
-    const { data: signed } = await supabase.storage
-      .from("drink-photos")
-      .createSignedUrls(photoPaths, SIGNED_URL_TTL_SECONDS);
-    signed?.forEach((s) => {
-      if (s.signedUrl && !s.error) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    });
-  }
+  // Lighter card copy where one exists, else the original (same
+  // policies, same short TTL): lib/storage/sign-photos.ts.
+  const signedUrlByPath = await signDrinkPhotoCardPaths(supabase, photoPaths, SIGNED_URL_TTL_SECONDS);
 
   const items: FeedItem[] = results.map((r) => ({
     logId: r.log_id,

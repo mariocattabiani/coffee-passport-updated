@@ -14,6 +14,7 @@ import { StarRating } from "@/components/logs/star-rating";
 import { PhotoUpload } from "@/components/logs/photo-upload";
 import { createClient } from "@/lib/supabase/client";
 import { createDrinkLog } from "@/lib/drink-logs/actions";
+import { uploadPhotoCard } from "@/lib/drink-logs/upload-photo-card";
 import { INITIAL_LOG_FORM_DATA, type LogFormData } from "@/lib/drink-logs/types";
 import type { Drink, Shop, Temperature } from "@/lib/supabase/types";
 
@@ -93,6 +94,8 @@ export function LogForm({ userId, initialShop = null }: LogFormProps) {
         return;
       }
       photoPath = path;
+      // Lighter copy for feeds and grids. Best-effort: never blocks the log.
+      await uploadPhotoCard(path, data.photoFile);
     }
 
     // The server does all the actual date/timezone math, this is just

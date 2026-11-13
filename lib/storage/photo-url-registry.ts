@@ -92,3 +92,14 @@ export function forgetPhotoUrl(url: string): void {
   const path = storagePathFromSignedUrl(url);
   if (path && registry.get(path)?.url === url) registry.delete(path);
 }
+
+/** A still-valid, already-downloaded link for this exact path, if any. */
+export function lookupPhotoUrl(path: string): string | null {
+  const hit = registry.get(path);
+  if (!hit) return null;
+  if (hit.expiresAt - SAFETY_MARGIN_MS <= Date.now()) {
+    registry.delete(path);
+    return null;
+  }
+  return hit.url;
+}
